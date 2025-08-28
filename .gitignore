@@ -1,0 +1,39 @@
+# --- Python ---
+# Virtual Environments
+venv/
+*.venv/
+env/
+.env
+
+# Byte-compiled / optimized / C extensions
+__pycache__/
+*.py[cod]
+*$py.class
+
+
+
+
+# --- Secrets ---
+# Never commit your environment files with secrets
+.env
+.env.*
+!.env.example
+
+
+# --- Project Specific ---
+# Streamlit cache directory
+.streamlit_cache/
+
+# Local data files like the vector database
+app/data/
+
+
+# --- IDE / Editor Configuration ---
+# VSCode
+.vscode/
+
+
+# data
+*.pdf
+*.png
+*.jpg

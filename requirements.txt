@@ -1,0 +1,43 @@
+# ---- Web Framework ----
+fastapi
+uvicorn[standard]
+python-multipart # Required by FastAPI for file uploads
+
+# ---- AI Integration ----
+anthropic # The official Python SDK for the Claude API
+
+# ---- Configuration & Settings ----
+pydantic-settings # For loading secrets from .env files
+
+# ---- Frontend ----
+streamlit
+requests
+
+# ---- Vector Search & NLP ----
+sentence-transformers
+faiss-cpu # For the vector database (use faiss-gpu if you have a compatible GPU)
+
+# ---- API Security & Performance ----
+slowapi
+
+# ---- Queuing & Background Tasks ----
+celery
+redis   
+
+# ---- Authentication ----
+python-jose[cryptography]
+passlib[bcrypt]
+
+# ---- AI & Image Processing ----
+openai
+python-dotenv
+pdf2image
+Pillow
+
+# ---- LangChain for Structured Output ----
+langchain
+langchain-openai
+
+# ---- Database ORM ----
+sqlalchemy
+psycopg2-binary
