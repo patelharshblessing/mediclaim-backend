@@ -21,3 +21,6 @@ class Settings(BaseSettings):
         env_file = ".env" # Use .env for real secrets
 
 settings = Settings()
+
+
+#hello
