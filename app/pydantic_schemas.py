@@ -1,6 +1,6 @@
 # app/schemas.py
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, conint
 from typing import List, Optional, Union
 from datetime import date
 
@@ -136,3 +136,52 @@ class PolicyRuleMatch(BaseModel):
         None,
         description="The name of the best matching sub-limit rules, or null if none apply."
     )
+
+class UserUpdateAdmin(BaseModel):
+    """Schema for updating a user's details from the admin panel."""
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    role_id: Optional[int] = None
+    is_active: Optional[bool] = None
+    password: Optional[str] = None # Admin can reset a password
+
+
+class UserBase(BaseModel):
+    username: str
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+
+from pydantic import BaseModel, Field, conint
+
+class UserCreate(UserBase):
+    """
+    Schema for creating a new user. Includes the password.
+    """
+    password: str
+    role_id: conint(ge=1, le=2) = Field(
+        ...,
+        description="Role ID: 1 for admin, 2 for regular user."
+    )
+# You can also update your existing User schema to inherit from UserBase
+# for consistency, though it's not required to fix the error.
+class User(UserBase):
+    """
+    Schema for returning a user from the API. Excludes the password.
+    """
+    user_id: int
+    is_active: bool
+    role_id: int
+
+    class Config:
+        from_attributes = True # Allows creating Pydantic model from ORM model
+
+class Policy(BaseModel):
+    """
+    Schema for representing a policy rulebook.
+    """
+    policy_id: str
+    policy_name: str
+    rules: dict # The entire rules JSON object
+
+    class Config:
+        from_attributes = True # Allows creating Pydantic model from ORM model

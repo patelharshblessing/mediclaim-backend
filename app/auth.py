@@ -6,36 +6,39 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from sqlalchemy.orm import Session
+
+from . import database_schema
+from .pydantic_schemas import User
 from .config import settings
-from .pydantic_schemas import UserInDB  # We will create this schema next
+from .database import get_db
+from . import database_schema as models
+from sqlalchemy.orm import Session, joinedload 
 
 # --- Password Hashing ---
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # --- OAuth2 Scheme ---
-# This tells FastAPI where to look for the token (in the Authorization header)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/token")
-
-# --- MOCK USER DATABASE ---
-# In a real application, this would come from a database.
-fake_users_db = {
-    "testuser": {
-        "username": "testuser",
-        "full_name": "Test User",
-        "email": "test@example.com",
-        "hashed_password": pwd_context.hash("secret"), # Hashed password for "secret"
-        "disabled": False,
-    }
-}
 
 # --- Helper Functions ---
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
-def get_user(db, username: str):
-    if username in db:
-        return UserInDB(**db[username])
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+def get_user(db: Session, username: str):
+    """Fetches a user from the database by username."""
+    
+    # --- FIX: Add .options(joinedload(...)) to eagerly load the role ---
+    return (
+        db.query(models.User)
+        .options(joinedload(models.User.role)) # This tells SQLAlchemy to fetch the role too
+        .filter(models.User.username == username)
+        .first()
+    )
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
@@ -49,7 +52,10 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 
 # --- The Main Dependency ---
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
+async def get_current_user(
+    token: str = Depends(oauth2_scheme), 
+    db: Session = Depends(get_db)
+):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -63,10 +69,27 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     except JWTError:
         raise credentials_exception
     
-    user = get_user(fake_users_db, username=username)
+    user = get_user(db, username=username)
     if user is None:
         raise credentials_exception
     
     return user
 
- 
+# app/auth.py
+
+# ... (keep all existing code)
+
+async def get_current_admin_user(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Dependency to ensure the current user is an administrator.
+    """
+    # We fetch the user's role from the database relationship
+    if current_user.role.role_name != 'admin':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The user does not have sufficient privileges"
+        )
+    return current_user
