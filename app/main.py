@@ -5,9 +5,9 @@ from .limiter import limiter
 from slowapi.errors import RateLimitExceeded
 from fastapi.responses import JSONResponse
 from fastapi.requests import Request
-from .endpoints.claims import claims_router,token_router
+from .endpoints.claims import claims_router
 from .config import settings
-from .endpoints.admin import admin_router
+from .endpoints.admin import admin_router,token_router
 
 
 

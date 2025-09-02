@@ -22,5 +22,3 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-
-#hello

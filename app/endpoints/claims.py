@@ -48,7 +48,7 @@ async def create_extraction_request(
     return extracted_data
 
 @claims_router.post("/adjudicate", response_model=AdjudicatedClaim)
-@limiter.limit("30/minute")
+@limiter.limit("10/minute")
 async def create_adjudication_request(
     request: Request,
     extracted_data: ExtractedData,
@@ -79,33 +79,15 @@ async def create_adjudication_request(
 
 
 
-token_router = APIRouter()
-# Login for access token check from the database
-@token_router.post("/token", response_model=Token)
-async def login_for_access_token(
-    db: Session = Depends(get_db), # <-- Add DB session dependency
-    form_data: OAuth2PasswordRequestForm = Depends()
-):
-    # Use the auth function to get the user from the real database
-    user = auth.get_user(db, form_data.username)
-    
-    if not user or not auth.verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    # (The rest of the function remains the same)
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = auth.create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
-    )
-    return {"access_token": access_token, "token_type": "bearer"}
+
 
 from .. import pydantic_schemas as schemas
 from uuid import UUID
+
 @claims_router.get("/{claim_id}", response_model=schemas.AdjudicatedClaim)
+@limiter.limit("10/minute") 
 async def read_claim(
+    request: Request,
     claim_id: UUID,
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(auth.get_current_user),
@@ -126,7 +108,9 @@ async def read_claim(
 
 from typing import List
 @claims_router.get("/")
+@limiter.limit("10/minute") 
 async def read_claims(
+    request: Request,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
@@ -138,3 +122,6 @@ async def read_claims(
     claims = crud.get_claims_by_user(db, user_id=current_user.user_id, skip=skip, limit=limit)
     # return the full claim objects
     return claims
+
+
+
