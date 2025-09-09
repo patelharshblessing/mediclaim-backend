@@ -1,0 +1,212 @@
+{
+    "hospital_name": {
+        "value": "New Life Hospital",
+        "confidence": 0.99
+    },
+    "patient_name": {
+        "value": "Mr. LASKHAY",
+        "confidence": 0.7
+    },
+    "bill_no": {
+        "value": "035",
+        "confidence": 0.95
+    },
+    "bill_date": {
+        "value": "2022-12-02",
+        "confidence": 0.95
+    },
+    "admission_date": {
+        "value": "2022-12-02",
+        "confidence": 0.9
+    },
+    "discharge_date": {
+        "value": null,
+        "confidence": 0.0
+    },
+    "net_payable_amount": {
+        "value": 22450.0,
+        "confidence": 0.99
+    },
+    "line_items": [
+        {
+            "description": {
+                "value": "SEMI PRIVATE ROOM CHARGE",
+                "confidence": 0.95
+            },
+            "quantity": {
+                "value": 5.0,
+                "confidence": 0.95
+            },
+            "unit_price": {
+                "value": 2500.0,
+                "confidence": 0.95
+            },
+            "total_amount": {
+                "value": 12500.0,
+                "confidence": 0.95
+            }
+        },
+        {
+            "description": {
+                "value": "NEBULIZATION CHARGE",
+                "confidence": 0.95
+            },
+            "quantity": {
+                "value": 5.0,
+                "confidence": 0.95
+            },
+            "unit_price": {
+                "value": 150.0,
+                "confidence": 0.95
+            },
+            "total_amount": {
+                "value": 750.0,
+                "confidence": 0.95
+            }
+        },
+        {
+            "description": {
+                "value": "ASSISTANT SURGEON FEES",
+                "confidence": 0.95
+            },
+            "quantity": {
+                "value": 1.0,
+                "confidence": 0.95
+            },
+            "unit_price": {
+                "value": 1000.0,
+                "confidence": 0.95
+            },
+            "total_amount": {
+                "value": 1000.0,
+                "confidence": 0.95
+            }
+        },
+        {
+            "description": {
+                "value": "DOCTOR VISIT CHARGE (Dr. AMAN KAPOOR - NEURO SURGERY)",
+                "confidence": 0.9
+            },
+            "quantity": {
+                "value": 10.0,
+                "confidence": 0.9
+            },
+            "unit_price": {
+                "value": 800.0,
+                "confidence": 0.9
+            },
+            "total_amount": {
+                "value": 8000.0,
+                "confidence": 0.9
+            }
+        },
+        {
+            "description": {
+                "value": "PROCEDURE CHARGE",
+                "confidence": 0.95
+            },
+            "quantity": {
+                "value": 1.0,
+                "confidence": 0.95
+            },
+            "unit_price": {
+                "value": 3000.0,
+                "confidence": 0.95
+            },
+            "total_amount": {
+                "value": 3000.0,
+                "confidence": 0.95
+            }
+        },
+        {
+            "description": {
+                "value": "COMPLETE BLOOD COUNT (CBC)",
+                "confidence": 0.95
+            },
+            "quantity": {
+                "value": 1.0,
+                "confidence": 0.95
+            },
+            "unit_price": {
+                "value": 600.0,
+                "confidence": 0.95
+            },
+            "total_amount": {
+                "value": 600.0,
+                "confidence": 0.95
+            }
+        },
+        {
+            "description": {
+                "value": "LIVER FUNCTION TEST (LFT)",
+                "confidence": 0.95
+            },
+            "quantity": {
+                "value": 1.0,
+                "confidence": 0.95
+            },
+            "unit_price": {
+                "value": 700.0,
+                "confidence": 0.95
+            },
+            "total_amount": {
+                "value": 700.0,
+                "confidence": 0.95
+            }
+        },
+        {
+            "description": {
+                "value": "KIDNEY FUNCTION TEST (KFT)",
+                "confidence": 0.95
+            },
+            "quantity": {
+                "value": 1.0,
+                "confidence": 0.95
+            },
+            "unit_price": {
+                "value": 700.0,
+                "confidence": 0.95
+            },
+            "total_amount": {
+                "value": 700.0,
+                "confidence": 0.95
+            }
+        },
+        {
+            "description": {
+                "value": "ERYTHROCYTE SEDIMENTATION RATE (ESR)",
+                "confidence": 0.85
+            },
+            "quantity": {
+                "value": 1.0,
+                "confidence": 0.9
+            },
+            "unit_price": {
+                "value": 100.0,
+                "confidence": 0.9
+            },
+            "total_amount": {
+                "value": 100.0,
+                "confidence": 0.9
+            }
+        },
+        {
+            "description": {
+                "value": "BLOOD SUGAR (R)",
+                "confidence": 0.9
+            },
+            "quantity": {
+                "value": 1.0,
+                "confidence": 0.9
+            },
+            "unit_price": {
+                "value": 100.0,
+                "confidence": 0.9
+            },
+            "total_amount": {
+                "value": 100.0,
+                "confidence": 0.9
+            }
+        }
+    ]
+}

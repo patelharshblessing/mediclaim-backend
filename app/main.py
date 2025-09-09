@@ -23,6 +23,7 @@ app.include_router(admin_router, prefix="/api/v1/admin", tags=["Admin"])
 #  Add the limiter to the app's state
 # app.state.limiter = limiter
 
+
 # # Add a custom exception handler for rate limit exceeded errors
 # @app.exception_handler(RateLimitExceeded)
 # async def rate_limit_exception_handler(request: Request, exc: RateLimitExceeded):

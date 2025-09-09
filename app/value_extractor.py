@@ -55,18 +55,22 @@ JSON Output Structure:
 }
 """
 
-def convert_pdf_to_base64_image(file_content: bytes) -> str:
-    """Converts the first page of a PDF to a Base64 encoded JPEG image."""
+def convert_pdf_to_base64_images(file_content: bytes) -> list[str]:
+    """Converts all pages of a PDF to Base64 encoded JPEG images."""
     try:
-        images = convert_from_bytes(file_content, fmt='jpeg', first_page=1, last_page=1)
+        images = convert_from_bytes(file_content, fmt='jpeg')  # Process all pages
         if not images:
-            raise ValueError("Could not convert PDF to image.")
+            raise ValueError("Could not convert PDF to images.")
         
-        # In-memory save to get bytes
-        import io
-        buffered = io.BytesIO()
-        images[0].save(buffered, format="JPEG")
-        return base64.b64encode(buffered.getvalue()).decode('utf-8')
+        base64_images = []
+        for image in images:
+            # In-memory save to get bytes
+            import io
+            buffered = io.BytesIO()
+            image.save(buffered, format="JPEG")
+            base64_images.append(base64.b64encode(buffered.getvalue()).decode('utf-8'))
+        
+        return base64_images
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to process PDF: {e}")
 
@@ -76,9 +80,15 @@ async def extract_data_from_bill(file: UploadFile) -> ExtractedDataWithConfidenc
     Orchestrates the file conversion, AI data extraction, and validation.
     """
     file_content = await file.read()
-    base64_image = convert_pdf_to_base64_image(file_content)
+    base64_images = convert_pdf_to_base64_images(file_content)  # Process all pages
 
     try:
+        # Combine all images into a single message
+        combined_images = "\n".join(
+            [f"data:image/jpeg;base64,{image}" for image in base64_images]
+        )
+
+        # Send the request to the AI model
         response = client.chat.completions.create(
             model="gpt-5",
             messages=[
@@ -88,7 +98,7 @@ async def extract_data_from_bill(file: UploadFile) -> ExtractedDataWithConfidenc
                         {"type": "text", "text": MASTER_PROMPT},
                         {
                             "type": "image_url",
-                            "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
+                            "image_url": {"url": combined_images},
                         },
                     ],
                 }
@@ -102,11 +112,13 @@ async def extract_data_from_bill(file: UploadFile) -> ExtractedDataWithConfidenc
 
         # Validate the AI's response against our Pydantic schema
         validated_data = ExtractedDataWithConfidence(**ai_response_json)
-        # if bill date is none then it should be the discarge date and vice versa
+        
+        # Handle missing bill dates
         if validated_data.bill_date is None and validated_data.admission_date:
             validated_data.bill_date = validated_data.admission_date
         if validated_data.bill_date is None and validated_data.discharge_date:
             validated_data.bill_date = validated_data.discharge_date
+        
         return validated_data
 
     except json.JSONDecodeError:
@@ -115,4 +127,3 @@ async def extract_data_from_bill(file: UploadFile) -> ExtractedDataWithConfidenc
         raise HTTPException(status_code=500, detail=f"AI response failed validation: {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred with the AI service: {e}")
-

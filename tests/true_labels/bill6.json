@@ -1,0 +1,31 @@
+{
+    "hospital_name": {
+        "value": null,
+        "confidence": 1.0
+    },
+    "patient_name": {
+        "value": null,
+        "confidence": 1.0
+    },
+    "bill_no": {
+        "value": null,
+        "confidence": 1.0
+    },
+    "bill_date": {
+        "value": null,
+        "confidence": 1.0
+    },
+    "admission_date": {
+        "value": null,
+        "confidence": 1.0
+    },
+    "discharge_date": {
+        "value": null,
+        "confidence": 1.0
+    },
+    "net_payable_amount": {
+        "value": null,
+        "confidence": 1.0
+    },
+    "line_items": []
+}

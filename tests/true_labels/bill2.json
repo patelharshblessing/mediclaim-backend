@@ -1,0 +1,68 @@
+{
+    "hospital_name": {
+        "value": "Concordia Hill Hospital",
+        "confidence": 1.0
+    },
+    "patient_name": {
+        "value": "Kemba Harris",
+        "confidence": 1.0
+    },
+    "bill_no": {
+        "value": "12245",
+        "confidence": 1.0
+    },
+    "bill_date": {
+        "value": "2023-07-01",
+        "confidence": 1.0
+    },
+    "admission_date": {
+        "value": null,
+        "confidence": 0.0
+    },
+    "discharge_date": {
+        "value": null,
+        "confidence": 0.0
+    },
+    "net_payable_amount": {
+        "value": 1902.05,
+        "confidence": 1.0
+    },
+    "line_items": [
+        {
+            "description": {
+                "value": "Full Check Up - Full body check up",
+                "confidence": 0.9
+            },
+            "quantity": {
+                "value": 1.0,
+                "confidence": 0.7
+            },
+            "unit_price": {
+                "value": 745.0,
+                "confidence": 0.9
+            },
+            "total_amount": {
+                "value": 745.0,
+                "confidence": 0.9
+            }
+        },
+        {
+            "description": {
+                "value": "Ear & Throat Examination - Infection check due to inflammation",
+                "confidence": 0.9
+            },
+            "quantity": {
+                "value": 1.0,
+                "confidence": 0.7
+            },
+            "unit_price": {
+                "value": 1000.0,
+                "confidence": 0.9
+            },
+            "total_amount": {
+                "value": 1000.0,
+                "confidence": 0.9
+            }
+        }
+    ]
+}

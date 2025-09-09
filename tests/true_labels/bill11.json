@@ -1,0 +1,140 @@
+{
+    "hospital_name": {
+        "value": "APOLLO HOSPITALS",
+        "confidence": 1.0
+    },
+    "patient_name": {
+        "value": "Saravana kumar V",
+        "confidence": 0.98
+    },
+    "bill_no": {
+        "value": "ICR33504",
+        "confidence": 1.0
+    },
+    "bill_date": {
+        "value": "2014-01-13",
+        "confidence": 0.7
+    },
+    "admission_date": {
+        "value": "2014-01-10",
+        "confidence": 0.98
+    },
+    "discharge_date": {
+        "value": "2014-01-13",
+        "confidence": 0.98
+    },
+    "net_payable_amount": {
+        "value": 15143.54,
+        "confidence": 0.8
+    },
+    "line_items": [
+        {
+            "description": {
+                "value": "ROOM RENT",
+                "confidence": 0.99
+            },
+            "quantity": {
+                "value": null,
+                "confidence": 0.9
+            },
+            "unit_price": {
+                "value": null,
+                "confidence": 0.9
+            },
+            "total_amount": {
+                "value": 4000.0,
+                "confidence": 0.99
+            }
+        },
+        {
+            "description": {
+                "value": "PHARMACY",
+                "confidence": 0.99
+            },
+            "quantity": {
+                "value": null,
+                "confidence": 0.9
+            },
+            "unit_price": {
+                "value": null,
+                "confidence": 0.9
+            },
+            "total_amount": {
+                "value": 2765.54,
+                "confidence": 0.99
+            }
+        },
+        {
+            "description": {
+                "value": "MEDICAL EQUIPMENT",
+                "confidence": 0.99
+            },
+            "quantity": {
+                "value": null,
+                "confidence": 0.9
+            },
+            "unit_price": {
+                "value": null,
+                "confidence": 0.9
+            },
+            "total_amount": {
+                "value": 1000.0,
+                "confidence": 0.99
+            }
+        },
+        {
+            "description": {
+                "value": "CONSULTATIONS",
+                "confidence": 0.99
+            },
+            "quantity": {
+                "value": null,
+                "confidence": 0.9
+            },
+            "unit_price": {
+                "value": null,
+                "confidence": 0.9
+            },
+            "total_amount": {
+                "value": 2400.0,
+                "confidence": 0.99
+            }
+        },
+        {
+            "description": {
+                "value": "CONSUMABLES",
+                "confidence": 0.99
+            },
+            "quantity": {
+                "value": null,
+                "confidence": 0.9
+            },
+            "unit_price": {
+                "value": null,
+                "confidence": 0.9
+            },
+            "total_amount": {
+                "value": 2118.0,
+                "confidence": 0.99
+            }
+        },
+        {
+            "description": {
+                "value": "INVESTIGATIONS",
+                "confidence": 0.99
+            },
+            "quantity": {
+                "value": null,
+                "confidence": 0.9
+            },
+            "unit_price": {
+                "value": null,
+                "confidence": 0.9
+            },
+            "total_amount": {
+                "value": 2860.0,
+                "confidence": 0.99
+            }
+        }
+    ]
+}

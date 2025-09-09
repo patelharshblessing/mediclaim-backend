@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 10000
 
     OPENAI_API_KEY: str
+    GEMINI_API_KEY: str # <-- Change from OPENAI_API_KEY
     DATABASE_URL: str = "postgresql://mediclaim_user:blessingsofttech@localhost/mediclaim_db"
 
     class Config:

@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 try:
     # Assuming your function is in a file named 'llm_tool_engine.py'
-    from app.apply_policy_rules import apply_policy_rule_with_llm_tools
+    from app.rules_utils import apply_policy_rule_with_llm_tools
     from app.pydantic_schemas import AdjudicatedLineItem
 except (ImportError, FileNotFoundError) as e:
     print(f"\nERROR: Could not import modules. Check file names and paths.")

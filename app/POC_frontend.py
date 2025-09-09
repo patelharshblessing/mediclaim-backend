@@ -49,8 +49,8 @@ if 'access_token' not in st.session_state:
 if st.session_state.access_token is None:
     st.header("Login")
     with st.form("login_form"):
-        username = st.text_input("Username", value="testuser")
-        password = st.text_input("Password", type="password", value="secret")
+        username = st.text_input("Username", value="harsh-user")
+        password = st.text_input("Password", type="password", value="harsh-user")
         submitted = st.form_submit_button("Login")
         if submitted:
             response = requests.post(
@@ -103,7 +103,7 @@ else:
                 headers = {"Authorization": f"Bearer {st.session_state.access_token}"}
                 files = {'file': (uploaded_file.name, uploaded_file, 'application/pdf')}
                 with st.spinner("Calling AI to extract data... This may take a moment."):
-                    response = requests.post(f"{API_BASE_URL}/extract", files=files, headers=headers)
+                    response = requests.post(f"{API_BASE_URL}/claims/extract", files=files, headers=headers)
                     if response.status_code == 200:
                         extracted_data = response.json()
                         st.session_state.extracted_data = extracted_data
@@ -282,7 +282,7 @@ else:
             params = {"policy_number": policy_number, "insurance_provider": insurance_provider}
             
             with st.spinner("Applying rules and adjudicating..."):
-                response = requests.post(f"{API_BASE_URL}/adjudicate", json=final_data_for_adjudication, headers=headers, params=params)
+                response = requests.post(f"{API_BASE_URL}/claims/adjudicate", json=final_data_for_adjudication, headers=headers, params=params)
                 if response.status_code == 200:
                     st.session_state.adjudicated_data = response.json()
                     st.success("Claim adjudicated!")

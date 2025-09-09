@@ -1,0 +1,104 @@
+{
+    "hospital_name": {
+        "value": "Apollo Hospitals Lucknow",
+        "confidence": 0.95
+    },
+    "patient_name": {
+        "value": "Dipanshu Singh",
+        "confidence": 0.98
+    },
+    "bill_no": {
+        "value": "ICR33504",
+        "confidence": 0.8
+    },
+    "bill_date": {
+        "value": "2024-11-24",
+        "confidence": 0.99
+    },
+    "admission_date": {
+        "value": "2024-11-24",
+        "confidence": 0.99
+    },
+    "discharge_date": {
+        "value": "2024-11-24",
+        "confidence": 0.99
+    },
+    "net_payable_amount": {
+        "value": 9165.54,
+        "confidence": 1.0
+    },
+    "line_items": [
+        {
+            "description": {
+                "value": "ROOM RENT",
+                "confidence": 0.98
+            },
+            "quantity": {
+                "value": null,
+                "confidence": 0.0
+            },
+            "unit_price": {
+                "value": null,
+                "confidence": 0.0
+            },
+            "total_amount": {
+                "value": 2000.0,
+                "confidence": 0.99
+            }
+        },
+        {
+            "description": {
+                "value": "PHARMACY",
+                "confidence": 0.98
+            },
+            "quantity": {
+                "value": null,
+                "confidence": 0.0
+            },
+            "unit_price": {
+                "value": null,
+                "confidence": 0.0
+            },
+            "total_amount": {
+                "value": 2765.54,
+                "confidence": 0.99
+            }
+        },
+        {
+            "description": {
+                "value": "MEDICAL EQUIPMENT",
+                "confidence": 0.98
+            },
+            "quantity": {
+                "value": null,
+                "confidence": 0.0
+            },
+            "unit_price": {
+                "value": null,
+                "confidence": 0.0
+            },
+            "total_amount": {
+                "value": 2000.0,
+                "confidence": 0.99
+            }
+        },
+        {
+            "description": {
+                "value": "CONSULTATIONS",
+                "confidence": 0.98
+            },
+            "quantity": {
+                "value": null,
+                "confidence": 0.0
+            },
+            "unit_price": {
+                "value": null,
+                "confidence": 0.0
+            },
+            "total_amount": {
+                "value": 2400.0,
+                "confidence": 0.99
+            }
+        }
+    ]
+}

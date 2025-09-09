@@ -1,0 +1,86 @@
+{
+    "hospital_name": {
+        "value": "Allina Health",
+        "confidence": 0.9
+    },
+    "patient_name": {
+        "value": "JANE DOE",
+        "confidence": 0.98
+    },
+    "bill_no": {
+        "value": "0000000",
+        "confidence": 0.7
+    },
+    "bill_date": {
+        "value": "2013-03-28",
+        "confidence": 0.95
+    },
+    "admission_date": {
+        "value": "2010-07-07",
+        "confidence": 0.85
+    },
+    "discharge_date": {
+        "value": "2010-07-07",
+        "confidence": 0.85
+    },
+    "net_payable_amount": {
+        "value": 419.07,
+        "confidence": 0.98
+    },
+    "line_items": [
+        {
+            "description": {
+                "value": "Laboratory General",
+                "confidence": 0.95
+            },
+            "quantity": {
+                "value": 1.0,
+                "confidence": 0.6
+            },
+            "unit_price": {
+                "value": 654.8,
+                "confidence": 0.95
+            },
+            "total_amount": {
+                "value": 654.8,
+                "confidence": 0.95
+            }
+        },
+        {
+            "description": {
+                "value": "Insurance Payment",
+                "confidence": 0.9
+            },
+            "quantity": {
+                "value": 1.0,
+                "confidence": 0.6
+            },
+            "unit_price": {
+                "value": 0.0,
+                "confidence": 0.9
+            },
+            "total_amount": {
+                "value": 0.0,
+                "confidence": 0.9
+            }
+        },
+        {
+            "description": {
+                "value": "Uninsured Discount",
+                "confidence": 0.95
+            },
+            "quantity": {
+                "value": 1.0,
+                "confidence": 0.6
+            },
+            "unit_price": {
+                "value": -235.73,
+                "confidence": 0.95
+            },
+            "total_amount": {
+                "value": -235.73,
+                "confidence": 0.95
+            }
+        }
+    ]
+}

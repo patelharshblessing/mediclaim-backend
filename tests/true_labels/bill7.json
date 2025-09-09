@@ -1,0 +1,50 @@
+{
+    "hospital_name": {
+        "value": "Fortis Hospitals Limited",
+        "confidence": 0.95
+    },
+    "patient_name": {
+        "value": "Mr. ANBALAGAN",
+        "confidence": 0.98
+    },
+    "bill_no": {
+        "value": "CS35645395",
+        "confidence": 0.92
+    },
+    "bill_date": {
+        "value": "2024-08-19",
+        "confidence": 0.98
+    },
+    "admission_date": {
+        "value": null,
+        "confidence": 0.0
+    },
+    "discharge_date": {
+        "value": null,
+        "confidence": 0.0
+    },
+    "net_payable_amount": {
+        "value": 12000.0,
+        "confidence": 0.98
+    },
+    "line_items": [
+        {
+            "description": {
+                "value": "Comprehensive Preventive Health Checkup",
+                "confidence": 0.98
+            },
+            "quantity": {
+                "value": 1.0,
+                "confidence": 0.98
+            },
+            "unit_price": {
+                "value": 12000.0,
+                "confidence": 0.95
+            },
+            "total_amount": {
+                "value": 12000.0,
+                "confidence": 0.98
+            }
+        }
+    ]
+}

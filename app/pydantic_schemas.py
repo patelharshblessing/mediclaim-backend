@@ -123,6 +123,7 @@ class ExtractedDataWithConfidence(BaseModel):
     hospital_name: FieldWithConfidence
     patient_name: FieldWithConfidence
     bill_date: FieldWithConfidence
+    bill_no: FieldWithConfidence
     admission_date: FieldWithConfidence
     discharge_date: FieldWithConfidence
     net_payable_amount: FieldWithConfidence

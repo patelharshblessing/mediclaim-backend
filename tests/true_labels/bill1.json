@@ -1,0 +1,159 @@
+{
+    "hospital_name": {
+        "value": "Jeevan Hospital",
+        "confidence": 1.0
+    },
+    "patient_name": {
+        "value": "DUMMY PATIENT",
+        "confidence": 1.0
+    },
+    "bill_no": {
+        "value": "000001",
+        "confidence": 0.7
+    },
+    "bill_date": {
+        "value": "2023-01-19",
+        "confidence": 1.0
+    },
+    "admission_date": {
+        "value": "2023-01-18",
+        "confidence": 1.0
+    },
+    "discharge_date": {
+        "value": null,
+        "confidence": 0.9
+    },
+    "net_payable_amount": {
+        "value": 3650.0,
+        "confidence": 1.0
+    },
+    "line_items": [
+        {
+            "description": {
+                "value": "Bed Charges - GENERAL (GEN001)",
+                "confidence": 0.9
+            },
+            "quantity": {
+                "value": 1.25,
+                "confidence": 0.7
+            },
+            "unit_price": {
+                "value": 200.0,
+                "confidence": 1.0
+            },
+            "total_amount": {
+                "value": 250.0,
+                "confidence": 1.0
+            }
+        },
+        {
+            "description": {
+                "value": "Nursing Fees - GENERAL (GEN001)",
+                "confidence": 0.9
+            },
+            "quantity": {
+                "value": 1.25,
+                "confidence": 0.7
+            },
+            "unit_price": {
+                "value": 200.0,
+                "confidence": 1.0
+            },
+            "total_amount": {
+                "value": 250.0,
+                "confidence": 1.0
+            }
+        },
+        {
+            "description": {
+                "value": "Nebulization - GENERAL (GEN001)",
+                "confidence": 0.95
+            },
+            "quantity": {
+                "value": 1.0,
+                "confidence": 1.0
+            },
+            "unit_price": {
+                "value": 100.0,
+                "confidence": 1.0
+            },
+            "total_amount": {
+                "value": 100.0,
+                "confidence": 1.0
+            }
+        },
+        {
+            "description": {
+                "value": "Injection Charges - GENERAL (GEN001)",
+                "confidence": 0.95
+            },
+            "quantity": {
+                "value": 1.0,
+                "confidence": 1.0
+            },
+            "unit_price": {
+                "value": 50.0,
+                "confidence": 1.0
+            },
+            "total_amount": {
+                "value": 50.0,
+                "confidence": 1.0
+            }
+        },
+        {
+            "description": {
+                "value": "Blood Transfusion Charges - GENERAL (GEN001)",
+                "confidence": 0.95
+            },
+            "quantity": {
+                "value": 1.0,
+                "confidence": 1.0
+            },
+            "unit_price": {
+                "value": 1000.0,
+                "confidence": 1.0
+            },
+            "total_amount": {
+                "value": 1000.0,
+                "confidence": 1.0
+            }
+        },
+        {
+            "description": {
+                "value": "Major OT Charge - GENERAL (GEN001)",
+                "confidence": 0.95
+            },
+            "quantity": {
+                "value": 1.0,
+                "confidence": 1.0
+            },
+            "unit_price": {
+                "value": 1000.0,
+                "confidence": 1.0
+            },
+            "total_amount": {
+                "value": 1000.0,
+                "confidence": 1.0
+            }
+        },
+        {
+            "description": {
+                "value": "Professional Fees - Dr. Akshara Raje",
+                "confidence": 0.9
+            },
+            "quantity": {
+                "value": 1.0,
+                "confidence": 1.0
+            },
+            "unit_price": {
+                "value": 500.0,
+                "confidence": 1.0
+            },
+            "total_amount": {
+                "value": 500.0,
+                "confidence": 1.0
+            }
+        }
+
+    ]
+}

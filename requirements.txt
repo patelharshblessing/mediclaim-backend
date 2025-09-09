@@ -41,3 +41,8 @@ langchain-openai
 # ---- Database ORM ----
 sqlalchemy
 psycopg2-binary
+
+langchain-google-genai
+
+# ---- AI Integration ----
+anthropic

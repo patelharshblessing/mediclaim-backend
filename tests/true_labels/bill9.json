@@ -1,0 +1,140 @@
+{
+    "hospital_name": {
+        "value": "Apollo Hospitals",
+        "confidence": 1.0
+    },
+    "patient_name": {
+        "value": "Kankana das",
+        "confidence": 0.98
+    },
+    "bill_no": {
+        "value": "ICR33504",
+        "confidence": 0.86
+    },
+    "bill_date": {
+        "value": "2024-08-30",
+        "confidence": 0.95
+    },
+    "admission_date": {
+        "value": "2024-08-28",
+        "confidence": 0.9
+    },
+    "discharge_date": {
+        "value": "2024-08-30",
+        "confidence": 0.9
+    },
+    "net_payable_amount": {
+        "value": 655720.0,
+        "confidence": 0.88
+    },
+    "line_items": [
+        {
+            "description": {
+                "value": "ROOM RENT",
+                "confidence": 0.97
+            },
+            "quantity": {
+                "value": 1.0,
+                "confidence": 0.8
+            },
+            "unit_price": {
+                "value": 121000.0,
+                "confidence": 0.97
+            },
+            "total_amount": {
+                "value": 121000.0,
+                "confidence": 0.97
+            }
+        },
+        {
+            "description": {
+                "value": "PHARMACY",
+                "confidence": 0.97
+            },
+            "quantity": {
+                "value": 1.0,
+                "confidence": 0.8
+            },
+            "unit_price": {
+                "value": 15000.0,
+                "confidence": 0.97
+            },
+            "total_amount": {
+                "value": 15000.0,
+                "confidence": 0.97
+            }
+        },
+        {
+            "description": {
+                "value": "MEDICAL EQUIPMENT",
+                "confidence": 0.96
+            },
+            "quantity": {
+                "value": 1.0,
+                "confidence": 0.8
+            },
+            "unit_price": {
+                "value": 82000.0,
+                "confidence": 0.96
+            },
+            "total_amount": {
+                "value": 82000.0,
+                "confidence": 0.96
+            }
+        },
+        {
+            "description": {
+                "value": "CONSULTATIONS",
+                "confidence": 0.96
+            },
+            "quantity": {
+                "value": 1.0,
+                "confidence": 0.8
+            },
+            "unit_price": {
+                "value": 55000.0,
+                "confidence": 0.96
+            },
+            "total_amount": {
+                "value": 55000.0,
+                "confidence": 0.96
+            }
+        },
+        {
+            "description": {
+                "value": "GST",
+                "confidence": 0.92
+            },
+            "quantity": {
+                "value": 1.0,
+                "confidence": 0.8
+            },
+            "unit_price": {
+                "value": 23720.0,
+                "confidence": 0.92
+            },
+            "total_amount": {
+                "value": 23720.0,
+                "confidence": 0.92
+            }
+        },
+        {
+            "description": {
+                "value": "OPRATION",
+                "confidence": 0.7
+            },
+            "quantity": {
+                "value": 1.0,
+                "confidence": 0.7
+            },
+            "unit_price": {
+                "value": 350000.0,
+                "confidence": 0.7
+            },
+            "total_amount": {
+                "value": 350000.0,
+                "confidence": 0.7
+            }
+        }
+    ]
+}

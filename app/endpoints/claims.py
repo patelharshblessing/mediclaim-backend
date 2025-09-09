@@ -3,7 +3,8 @@
 from fastapi import APIRouter, UploadFile, File, Depends, Request
 from fastapi.responses import JSONResponse
 from ..pydantic_schemas import ExtractedData
-from ..value_extractor import extract_data_from_bill
+# from ..value_extractor import extract_data_from_bill
+from ..value_extraction_gemini import extract_data_from_bill
 from ..pydantic_schemas import ExtractedDataWithConfidence
 from ..pydantic_schemas import AdjudicatedClaim
 from ..rules_engine import adjudicate_claim
