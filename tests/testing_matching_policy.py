@@ -4,11 +4,11 @@ import os
 import sys
 
 # Add the root project directory to the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from app.rules_utils import get_rule_match_with_llm
-from app.normalization_service import NormalizationService
 from app.data.master_data import POLICY_RULEBOOK
+from app.normalization_service import NormalizationService
+from app.rules_utils import get_rule_match_with_llm
 
 # scripts/compare_matching_methods.py
 
@@ -69,7 +69,7 @@ MATCHING_TEST_CASES = [
     ("Post-Hospitalization Medicines", "Post-Hospitalization"),
     ("Daycare Dialysis Procedure", "Daycare Procedures"),
     ("Room Rent for Shared Room", "Room Charges"),
-    ("ICU Nursing Charges", "ICU Charges")
+    ("ICU Nursing Charges", "ICU Charges"),
 ]
 
 
@@ -79,40 +79,41 @@ async def run_comparison():
     rule matching methods and prints an accuracy report.
     """
     print("--- Starting Rule Matching Method Comparison ---")
-    
+
     # Initialize the local service
     normalization_service = NormalizationService()
-    
+
     # Prepare data for the test
     sub_limits = POLICY_RULEBOOK["MVP1"]["sub_limits"]
     descriptions = [case[0] for case in MATCHING_TEST_CASES]
-    
+
     # --- Run the LLM-based method for all items in parallel ---
     print("\nStep 1: Running LLM-based matching (this may take a moment)...")
     llm_tasks = [get_rule_match_with_llm(desc, sub_limits) for desc in descriptions]
     llm_results = await asyncio.gather(*llm_tasks)
     print("LLM matching complete.")
-    
+
     # --- Run the NormalizationService method for all items ---
-    print("\nStep 2: Running local NormalizationService matching (this will be instant)...")
+    print(
+        "\nStep 2: Running local NormalizationService matching (this will be instant)..."
+    )
     norm_results = []
     for desc in descriptions:
         normalized = normalization_service.normalize_description(desc)
         # The category is the matched rule name
-        norm_results.append(normalized['category'] if normalized else None)
+        norm_results.append(normalized["category"] if normalized else None)
     print("NormalizationService matching complete.")
-    
 
     # --- Step 3: Compare results and generate report ---
     norm_correct = 0
     llm_correct = 0
-    
+
     # (Colors for printing)
     GREEN = "\033[92m"
     RED = "\033[91m"
     RESET = "\033[0m"
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("                         Accuracy Comparison Report")
     # ...
 
@@ -126,7 +127,7 @@ async def run_comparison():
         expected_clean = str(expected or "").strip().lower()
         norm_clean = str(norm_prediction or "").strip().lower()
         llm_clean = str(llm_prediction or "").strip().lower()
-        
+
         # Check NormalizationService accuracy
         if norm_clean == expected_clean:
             norm_correct += 1
@@ -140,27 +141,35 @@ async def run_comparison():
             llm_status = f"{GREEN}PASS{RESET}"
         else:
             llm_status = f"{RED}FAIL{RESET}"
-            
-        print(f"{description:<40} | {str(expected):<20} | {str(norm_prediction):<20} ({norm_status}) | {str(llm_prediction):<20} ({llm_status})")
 
+        print(
+            f"{description:<40} | {str(expected):<20} | {str(norm_prediction):<20} ({norm_status}) | {str(llm_prediction):<20} ({llm_status})"
+        )
 
     # --- Final Score ---
     norm_accuracy = (norm_correct / len(MATCHING_TEST_CASES)) * 100
     llm_accuracy = (llm_correct / len(MATCHING_TEST_CASES)) * 100
 
-    print("="*80)
+    print("=" * 80)
     print("                            Final Scores")
-    print("="*80)
-    print(f"NormalizationService Accuracy: {norm_accuracy:.2f}% ({norm_correct}/{len(MATCHING_TEST_CASES)} correct)")
-    print(f"LLM Matcher Accuracy:          {llm_accuracy:.2f}% ({llm_correct}/{len(MATCHING_TEST_CASES)} correct)")
-    print("="*80)
+    print("=" * 80)
+    print(
+        f"NormalizationService Accuracy: {norm_accuracy:.2f}% ({norm_correct}/{len(MATCHING_TEST_CASES)} correct)"
+    )
+    print(
+        f"LLM Matcher Accuracy:          {llm_accuracy:.2f}% ({llm_correct}/{len(MATCHING_TEST_CASES)} correct)"
+    )
+    print("=" * 80)
 
     if norm_accuracy > llm_accuracy:
-        print(f"\n🏆 {GREEN}Winner: NormalizationService is more accurate and significantly faster/cheaper.{RESET}")
+        print(
+            f"\n🏆 {GREEN}Winner: NormalizationService is more accurate and significantly faster/cheaper.{RESET}"
+        )
     elif llm_accuracy > norm_accuracy:
         print(f"\n🏆 {GREEN}Winner: LLM Matcher is more accurate.{RESET}")
     else:
         print("\nIt's a tie! But NormalizationService is faster and cheaper.")
+
 
 if __name__ == "__main__":
     asyncio.run(run_comparison())

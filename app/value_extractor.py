@@ -2,9 +2,10 @@
 
 import base64
 import json
-from fastapi import UploadFile, HTTPException, status
-from pdf2image import convert_from_bytes
+
+from fastapi import HTTPException, UploadFile, status
 from openai import OpenAI
+from pdf2image import convert_from_bytes
 from pydantic import ValidationError
 
 from .config import settings
@@ -55,24 +56,29 @@ JSON Output Structure:
 }
 """
 
+
 def convert_pdf_to_base64_images(file_content: bytes) -> list[str]:
     """Converts all pages of a PDF to Base64 encoded JPEG images."""
     try:
-        images = convert_from_bytes(file_content, fmt='jpeg')  # Process all pages
+        images = convert_from_bytes(file_content, fmt="jpeg")  # Process all pages
         if not images:
             raise ValueError("Could not convert PDF to images.")
-        
+
         base64_images = []
         for image in images:
             # In-memory save to get bytes
             import io
+
             buffered = io.BytesIO()
             image.save(buffered, format="JPEG")
-            base64_images.append(base64.b64encode(buffered.getvalue()).decode('utf-8'))
-        
+            base64_images.append(base64.b64encode(buffered.getvalue()).decode("utf-8"))
+
         return base64_images
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to process PDF: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to process PDF: {e}",
+        )
 
 
 async def extract_data_from_bill(file: UploadFile) -> ExtractedDataWithConfidence:
@@ -104,26 +110,30 @@ async def extract_data_from_bill(file: UploadFile) -> ExtractedDataWithConfidenc
                 }
             ],
             # temperature=0.0,
-            response_format={"type": "json_object"}
+            response_format={"type": "json_object"},
         )
-        
+
         ai_response_str = response.choices[0].message.content
         ai_response_json = json.loads(ai_response_str)
 
         # Validate the AI's response against our Pydantic schema
         validated_data = ExtractedDataWithConfidence(**ai_response_json)
-        
+
         # Handle missing bill dates
         if validated_data.bill_date is None and validated_data.admission_date:
             validated_data.bill_date = validated_data.admission_date
         if validated_data.bill_date is None and validated_data.discharge_date:
             validated_data.bill_date = validated_data.discharge_date
-        
+
         return validated_data
 
     except json.JSONDecodeError:
         raise HTTPException(status_code=500, detail="AI returned malformed JSON.")
     except ValidationError as e:
-        raise HTTPException(status_code=500, detail=f"AI response failed validation: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"AI response failed validation: {e}"
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred with the AI service: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"An error occurred with the AI service: {e}"
+        )

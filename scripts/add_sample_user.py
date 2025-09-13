@@ -1,11 +1,11 @@
-import sys
 import os
+import sys
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from app.database import SessionLocal
-from app.database_schema import User, Role
 from app.auth import get_password_hash
+from app.database import SessionLocal
+from app.database_schema import Role, User
 
 # def add_sample_user():
 #     db = SessionLocal()
@@ -33,8 +33,8 @@ def add_admin_user():
     db = SessionLocal()
     try:
         # --- Step 1: Find the 'admin' role ---
-        admin_role = db.query(Role).filter(Role.role_name == 'admin').first()
-        
+        admin_role = db.query(Role).filter(Role.role_name == "admin").first()
+
         if not admin_role:
             print("❌ Error: The 'admin' role was not found in the database.")
             print("Please run the initial data creation script first to create roles.")
@@ -43,7 +43,7 @@ def add_admin_user():
         # --- Step 2: Define the new admin user's details ---
         username = "superadmin"
         password = "supersecretpassword"
-        
+
         # Check if the user already exists
         existing_user = db.query(User).filter(User.username == username).first()
         if existing_user:
@@ -58,13 +58,13 @@ def add_admin_user():
             full_name="Super Administrator",
             email="superadmin@example.com",
             is_active=True,
-            role_id=admin_role.role_id  # Assign the admin role's ID
+            role_id=admin_role.role_id,  # Assign the admin role's ID
         )
-        
+
         db.add(new_admin)
         db.commit()
         db.refresh(new_admin)
-        
+
         print(f"✅ Successfully added new admin user:")
         print(f"   Username: {username}")
         print(f"   Password: {password}")
@@ -74,5 +74,5 @@ def add_admin_user():
 
 
 if __name__ == "__main__":
-   # add_sample_user()
-   add_admin_user()
+    # add_sample_user()
+    add_admin_user()

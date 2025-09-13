@@ -1,11 +1,13 @@
 # scripts/seed_policies.py
-import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import sys
 
-from app.database import SessionLocal
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from app import database_schema as models
 from app.data.master_data import POLICY_RULEBOOK
+from app.database import SessionLocal
+
 
 def seed_policies():
     db = SessionLocal()
@@ -22,7 +24,7 @@ def seed_policies():
             new_policy = models.Policy(
                 policy_id=policy_id,
                 policy_name=policy_data["policy_name"],
-                rules=policy_data # SQLAlchemy will automatically handle the dict -> JSONB conversion
+                rules=policy_data,  # SQLAlchemy will automatically handle the dict -> JSONB conversion
             )
             db.add(new_policy)
             print(f"Adding policy: {policy_id} - {policy_data['policy_name']}")
@@ -31,6 +33,7 @@ def seed_policies():
         print("✅ Policies seeded successfully.")
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     seed_policies()

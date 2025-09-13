@@ -1,5 +1,6 @@
-import requests
 import json
+
+import requests
 
 # It's a best practice to not hardcode your API key directly in the script.
 # Instead, you can set it as an environment variable.
@@ -10,19 +11,20 @@ api_key = ""
 api_endpoint = "https://api.openai.com/v1/chat/completions"
 
 # The headers now include the Content-Type for the JSON payload.
-headers = {
-    "Authorization": f"Bearer {api_key}",
-    "Content-Type": "application/json"
-}
+headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
 # This is the payload that will be sent to the API.
 # It specifies the model and the message to send.
 payload = {
     "model": "gpt-4o",
     "messages": [
-        {"role": "user", "content": "Say 'Hello, uck uu!' to confirm the API call is working."}
-    ]
+        {
+            "role": "user",
+            "content": "Say 'Hello, uck uu!' to confirm the API call is working.",
+        }
+    ],
 }
+
 
 def invoke_gpt4o(endpoint, headers, data):
     """
@@ -45,20 +47,28 @@ def invoke_gpt4o(endpoint, headers, data):
         if response.status_code == 200:
             print("\n✅ Success! Your API key is working and gpt-4o was invoked.")
             response_data = response.json()
-            message_content = response_data.get('choices', [{}])[0].get('message', {}).get('content')
+            message_content = (
+                response_data.get("choices", [{}])[0].get("message", {}).get("content")
+            )
             if message_content:
                 print(f"Model Response: {message_content.strip()}")
             else:
                 print("Could not parse model response, but the request was successful.")
         elif response.status_code == 401:
             print("\n❌ Error: Authentication failed (401 Unauthorized).")
-            print("This usually means your API key is invalid, expired, or has been revoked.")
+            print(
+                "This usually means your API key is invalid, expired, or has been revoked."
+            )
         elif response.status_code == 403:
             print("\n❌ Error: Access denied (403 Forbidden).")
-            print("Your API key may be correct, but you don't have permission for this resource.")
+            print(
+                "Your API key may be correct, but you don't have permission for this resource."
+            )
         elif response.status_code == 429:
             print("\n❌ Error: Rate limit exceeded or insufficient quota (429).")
-            print("You have sent too many requests or your account may not have enough funds.")
+            print(
+                "You have sent too many requests or your account may not have enough funds."
+            )
         else:
             print(f"\n⚠️  Received an unexpected status code: {response.status_code}")
             try:
@@ -73,6 +83,7 @@ def invoke_gpt4o(endpoint, headers, data):
         print("This could be due to a network issue or an incorrect endpoint URL.")
     except Exception as e:
         print(f"\n❌ An unexpected error occurred: {e}")
+
 
 if __name__ == "__main__":
     invoke_gpt4o(api_endpoint, headers, payload)

@@ -1,20 +1,19 @@
 # app/main.py
 
 from fastapi import FastAPI
-from .limiter import limiter
-from slowapi.errors import RateLimitExceeded
-from fastapi.responses import JSONResponse
 from fastapi.requests import Request
-from .endpoints.claims import claims_router
+from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
+
 from .config import settings
-from .endpoints.admin import admin_router,token_router
-
-
+from .endpoints.admin import admin_router, token_router
+from .endpoints.claims import claims_router
+from .limiter import limiter
 
 app = FastAPI(
     title="Mediclaim Processing API",
     description="API for extracting and adjudicating medical claims.",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 app.include_router(claims_router, prefix="/api/v1/claims", tags=["Claims"])
@@ -33,10 +32,9 @@ app.include_router(admin_router, prefix="/api/v1/admin", tags=["Admin"])
 #     )
 
 
-
 # Include the router from our endpoints file
 @app.get("/", tags=["Health Check"])
-@limiter.limit("5/minute") # Protect the health check endpoint as well
+@limiter.limit("5/minute")  # Protect the health check endpoint as well
 def read_root(request: Request):
+    """just for test"""
     return {"status": "ok"}
-

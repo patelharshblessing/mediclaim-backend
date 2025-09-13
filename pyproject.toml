@@ -1,0 +1,26 @@
+# pyproject.toml
+
+[tool.black]
+# Set the line length Black will enforce.
+line-length = 88
+target-version = ['py310'] # Specify the Python versions you target
+
+[tool.isort]
+# Make isort compatible with Black's formatting.
+profile = "black"
+line_length = 100
+
+[tool.flake8]
+# Set the max line length to match Black
+max-line-length = 88
+# Ignore line-too-long (E501) and other errors that Black handles
+extend-ignore = "E501, W503"
+
+# You can also specify files or directories to exclude.
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    "venv"
+]

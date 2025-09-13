@@ -3,12 +3,12 @@ import os
 import sys
 
 # Add the root project directory to the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 try:
     # Assuming your function is in a file named 'llm_tool_engine.py'
-    from app.rules_utils import apply_policy_rule_with_llm_tools
     from app.pydantic_schemas import AdjudicatedLineItem
+    from app.rules_utils import apply_policy_rule_with_llm_tools
 except (ImportError, FileNotFoundError) as e:
     print(f"\nERROR: Could not import modules. Check file names and paths.")
     print(f"Details: {e}")
@@ -39,13 +39,26 @@ TEST_CASES = [
     # },
     {
         "name": "Test 5: Percentage Limit - (Testing Agent's Handling of Missing Info)",
-        "item": AdjudicatedLineItem(description="Room Rent", quantity=1, unit_price=30000, total_amount=30000, status="Allowed", allowed_amount=30000, disallowed_amount=0),
-        "rule": {"type": "percentage_of_sum_insured", "value": 1, "description": "Room Rent capped at 1% of Sum Insured."},
-        "sum_insured" : 100000
+        "item": AdjudicatedLineItem(
+            description="Room Rent",
+            quantity=1,
+            unit_price=30000,
+            total_amount=30000,
+            status="Allowed",
+            allowed_amount=30000,
+            disallowed_amount=0,
+        ),
+        "rule": {
+            "type": "percentage_of_sum_insured",
+            "value": 1,
+            "description": "Room Rent capped at 1% of Sum Insured.",
+        },
+        "sum_insured": 100000,
         # NOTE: This case intentionally omits the required 'sum_insured'.
         # We are testing how the agent responds when critical context is missing from the prompt.
     },
 ]
+
 
 async def run_all_tests():
     """
@@ -53,12 +66,12 @@ async def run_all_tests():
     """
     for i, case in enumerate(TEST_CASES):
         print(f"\n--- Running Test Case #{i+1}: {case['name']} ---")
-        
+
         try:
             result = await apply_policy_rule_with_llm_tools(
-                item=case['item'],
-                policy_rule=case['rule'],
-                sum_insured=case['sum_insured']
+                item=case["item"],
+                policy_rule=case["rule"],
+                sum_insured=case["sum_insured"],
             )
             # The agent's final output is in the 'output' key
             print(f"Agent's Final Answer:\n{result}")
@@ -66,8 +79,9 @@ async def run_all_tests():
         except Exception as e:
             print(f"\n--- ❌ Test Case Failed with Error ---")
             print(f"An unexpected error occurred: {e}")
-        
+
         print("-" * 50)
+
 
 # --- Main execution block ---
 if __name__ == "__main__":

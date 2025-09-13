@@ -2,6 +2,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+
 from .config import settings
 
 # Create the SQLAlchemy engine
@@ -12,6 +13,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Base class for our SQLAlchemy models to inherit from
 Base = declarative_base()
+
 
 # Dependency for API endpoints to get a DB session
 def get_db():

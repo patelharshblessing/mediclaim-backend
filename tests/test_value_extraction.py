@@ -1,33 +1,39 @@
 # tests/test_value_extractor.py
 
 import asyncio
+import io
 import os
 import sys
+
 from fastapi import UploadFile
-import io
 
 # Add the root project directory to the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 try:
-    from app.value_extractor import extract_data_from_bill
     from app.pydantic_schemas import ExtractedDataWithConfidence
+    from app.value_extractor import extract_data_from_bill
 except (ImportError, FileNotFoundError) as e:
-    print(f"\nERROR: Could not import necessary modules. Please check your project structure and file names.")
+    print(
+        f"\nERROR: Could not import necessary modules. Please check your project structure and file names."
+    )
     print(f"Details: {e}")
     sys.exit(1)
 
 # --- Configuration ---
 # IMPORTANT: Place a sample PDF file in your project's root directory
 # and update this filename if it's different.
-TEST_PDF_PATH = "/home/harsh/Desktop/Personal_project/mediclaim_backend/tests/medical bills/205064886-Medical-Bill.pdf" 
+TEST_PDF_PATH = "/home/harsh/Desktop/Personal_project/mediclaim_backend/tests/medical bills/205064886-Medical-Bill.pdf"
+
 
 def print_result(data: ExtractedDataWithConfidence):
     """Prints the extracted data in a readable format."""
     print("\n--- ✅ AI Extraction Successful ---")
-    
+
     def print_field(name, field):
-        print(f"{name:<20} | Value: {str(field.value):<30} | Confidence: {field.confidence:.2f}")
+        print(
+            f"{name:<20} | Value: {str(field.value):<30} | Confidence: {field.confidence:.2f}"
+        )
 
     print_field("Hospital Name", data.hospital_name)
     print_field("Patient Name", data.patient_name)
@@ -42,7 +48,7 @@ def print_result(data: ExtractedDataWithConfidence):
         print_field("  Quantity", item.quantity)
         print_field("  Unit Price", item.unit_price)
         print_field("  Total Amount", item.total_amount)
-    
+
     print("\n--- Totals ---")
     print_field("Gross Amount", data.gross_amount)
     print_field("Net Payable Amount", data.net_payable_amount)
@@ -71,7 +77,7 @@ async def run_test():
             print("File loaded. Calling the extraction service...")
             # Call the actual extraction function
             result = await extract_data_from_bill(upload_file)
-            
+
             # Print the formatted results
             print_result(result)
 
@@ -83,4 +89,3 @@ async def run_test():
 if __name__ == "__main__":
     # Use asyncio.run() to execute the async test function
     asyncio.run(run_test())
-    

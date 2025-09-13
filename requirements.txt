@@ -22,7 +22,7 @@ slowapi
 
 # ---- Queuing & Background Tasks ----
 celery
-redis   
+redis
 
 # ---- Authentication ----
 python-jose[cryptography]
@@ -46,3 +46,7 @@ langchain-google-genai
 
 # ---- AI Integration ----
 anthropic
+
+ruff
+black
+pre-commit
