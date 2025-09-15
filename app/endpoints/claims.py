@@ -23,7 +23,7 @@ from ..pydantic_schemas import (
 from ..rules_engine import adjudicate_claim
 
 # from ..value_extractor import extract_data_from_bill
-from ..value_extraction_gemini import extract_data_from_bill
+from ..value_extractor import extract_data_from_bill
 
 # import db
 db = get_db()
