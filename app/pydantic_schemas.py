@@ -105,7 +105,7 @@ class SanityCheckResult(BaseModel):
     )
     flags: List[str] = Field(
         default_factory=list,
-        description="A list of specific flags for any potential issues"
+        description="A list of specific flags for any potential issues "
         " (e.g., 'High Pharmacy Cost').",
     )
 
@@ -134,8 +134,8 @@ class AdjudicatedClaim(BaseModel):
     total_claimed_amount: float = Field(
         ..., description="The gross amount originally claimed."
     )
-    total_allowed_amount: float = Field(
-        ..., description="The total amount allowed after adjudication."
+    total_amount_reimbursed: float = Field(
+        ..., description="The total amount that can be reimbursed."
     )
     adjustments_log: list[str] = Field(
         ..., description="The adjustment made on the bill due to policy rules"

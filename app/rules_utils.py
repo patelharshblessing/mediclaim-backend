@@ -248,11 +248,7 @@ def identify_non_payable_items(
     return non_payable_items_found
 
 
-# The prompt template for rule matching remains the same
-PROMPT_TEMPLATE = """
-You are an expert insurance adjudicator...
-...
-"""
+
 
 # --- NEW: Initialize the Gemini LLM for structured output ---
 llm_match = ChatGoogleGenerativeAI(
@@ -342,7 +338,23 @@ llm_agent = ChatGoogleGenerativeAI(
 
 AGENT_PROMPT = ChatPromptTemplate.from_messages(
     [
-        ("system", "You are a precise insurance claims adjudication engine..."),
+        (
+            "system",
+            """You are a meticulous and precise insurance claims adjudication engine.
+Your task is to apply a single policy rule to a single line item and calculate the final allowed amount.
+
+**CRITICAL INSTRUCTION: You MUST use the provided tools for all mathematical calculations, even for simple ones. Do NOT perform calculations yourself.**
+
+**You must follow these steps to reason:**
+1.  First, identify the **'claimed amount'**, the **'quantity'**, and the specific **'policy rule'** from the context.
+2.  Second, analyze the rule. Is it a 'per day', 'per instance', 'per unit', or a total 'claim level' limit?
+3.  Third, using the provided tools, calculate the **maximum possible allowed amount** based on the rule and the quantity. For 'per day' or 'per instance' rules, this will involve **multiplying the limit by the quantity**.
+4.  Fourth, compare this calculated maximum with the originally claimed amount for the line item.
+5.  The final **'allowed amount'** for this item is the **lesser** of these two values (the calculated maximum and the claimed amount).
+
+Provide your final answer by summarizing the updated AdjudicatedLineItem object.
+""",
+        ),
         (
             "human",
             "Apply the policy rule to the line item based on the following context:\n{input}",
@@ -403,67 +415,52 @@ gemini_llm = ChatGoogleGenerativeAI(
 llm_formatter = gemini_llm.with_structured_output(SanityCheckResult)
 
 
+FLAG_CATEGORIES = [
+        "Calculation Error",
+        "Logic Inconsistency",
+        "High Cost Anomaly",
+        "Missing Information",
+        "Policy Misinterpretation"
+    ]
+
+
+
 async def run_final_sanity_check(
     adjudicated_claim: AdjudicatedClaim,
 ) -> SanityCheckResult:
     """
-    Uses Gemini 2.5 Pro to perform a final sanity check on the adjudicated claim object.
-    The LLM acts as a professional claims processor with 20+ years of experience.
-
-    Args:
-        adjudicated_claim: The fully adjudicated claim object.
-
-    Returns:
-        A SanityCheckResult object containing the results of the sanity check.
+    Uses Gemini to perform a final sanity check on the adjudicated claim object.
     """
-    # Prepare the input prompt for the Gemini LLM
+    FLAG_CATEGORIES = [
+        "Calculation Error",
+        "Logic Inconsistency",
+        "High Cost Anomaly",
+        "Missing Information",
+        "Policy Misinterpretation"
+    ]
+
     input_prompt = f"""
     You are a professional claims processor with over 20 years of experience.
     Your task is to perform a final sanity check on the adjudicated claim object provided below.
-    Analyze the claim for logical consistency, adherence to policy rules, and any potential errors.
 
     Adjudicated Claim Details:
-    - Hospital Name: {adjudicated_claim.hospital_name}
-    - Patient Name: {adjudicated_claim.patient_name}
-    - Bill Number: {adjudicated_claim.bill_no}
-    - Bill Date: {adjudicated_claim.bill_date}
-    - Admission Date: {adjudicated_claim.admission_date}
-    - Discharge Date: {adjudicated_claim.discharge_date}
-    - Total Claimed Amount: ₹{adjudicated_claim.total_claimed_amount:,.2f}
-    - Total Allowed Amount: ₹{adjudicated_claim.total_allowed_amount:,.2f}
-    - Adjustments Log: {adjudicated_claim.adjustments_log}
+    {adjudicated_claim.model_dump_json(indent=2)}
 
-    Line Items:
-    {[
-        f"Description: {item.description}, Status: {item.status}, Allowed Amount: ₹{item.allowed_amount:,.2f}, "
-        f"Disallowed Amount: ₹{item.disallowed_amount:,.2f}, Reason: {item.reason}"
-        for item in adjudicated_claim.adjudicated_line_items
-    ]}
+    **Predefined Flag Categories:**
+    `{FLAG_CATEGORIES}`
 
-    Instructions:
-    1. Determine if the adjudication is reasonable and consistent with the provided data.
-    2. Identify any potential issues or flags (e.g., excessive disallowed amounts, missing reasons).
-    3. Provide a brief reasoning for your decision.
-    4. Return the result in the following JSON format:
-       {{
-           "is_reasonable": <true/false>,
-           "reasoning": "<brief explanation>",
-           "flags": ["<list of issues or warnings>"]
-       }}
+    ---
+    **Instructions:**
+    1.  First, determine if the final adjudication is reasonable and consistent. Set `is_reasonable` to `true` or `false`.
+    2.  Second, provide a brief, one-sentence explanation for your decision in the `reasoning` field.
+    3.  **Third, if `is_reasonable` is `false`, you MUST select one or more relevant flags from the `Predefined Flag Categories` list and add them to the `flags` array.** If everything is reasonable, the `flags` array should be empty.
+
+    Respond ONLY with a valid JSON object following the specified schema.
+    ---
     """
 
     # Invoke the Gemini LLM
     response = await llm_formatter.ainvoke(input_prompt)
     print(f"Sanity Check LLM Response: {response}")
-    # # Parse the response into the SanityCheckResult schema
-    # try:
-    #     sanity_check_result = SanityCheckResult.parse_raw(response)
-    # except Exception as e:
-    #     # Handle any parsing errors
-    #     sanity_check_result = SanityCheckResult(
-    #         is_reasonable=False,
-    #         reasoning="Failed to parse the sanity check result from the LLM response.",
-    #         flags=[f"Parsing error: {str(e)}"]
-    #     )
 
     return response

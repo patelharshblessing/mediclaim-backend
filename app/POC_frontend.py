@@ -354,7 +354,7 @@ else:
 
         cols = st.columns(2)
         cols[0].metric("Total Claimed", f"₹{res.get('total_claimed_amount', 0):.2f}")
-        cols[1].metric("Total Allowed", f"₹{res.get('total_allowed_amount', 0):.2f}")
+        cols[1].metric("Total Allowed", f"₹{res.get('total_amount_reimbursed', 0):.2f}")
 
         # Display adjustments log
         if res.get("adjustments_log"):

@@ -72,7 +72,7 @@ async def adjudicate_claim(
         adjudicated_line_items=initial_adjudicated_items,
         # Initialize total amounts
         total_claimed_amount=extracted_data.net_payable_amount,
-        total_allowed_amount=extracted_data.net_payable_amount,  # Starts as the full amount
+        total_amount_reimbursed=extracted_data.net_payable_amount,  # Starts as the full amount
         adjustments_log=[],
     )
 
@@ -177,7 +177,7 @@ async def adjudicate_claim(
         item.allowed_amount for item in adjudicated_claim.adjudicated_line_items
     )
 
-    adjudicated_claim.total_allowed_amount = final_total_allowed
+    adjudicated_claim.total_amount_reimbursed = final_total_allowed
 
     # 4b. Apply the co-payment rule
     co_payment_percentage = policy.get("co_payment_percentage", 0)
@@ -200,7 +200,7 @@ async def adjudicate_claim(
             f"Final amount capped at the policy's Sum Insured of ₹{sum_insured:,.2f}."
         )
 
-    adjudicated_claim.total_allowed_amount = final_payable
+    adjudicated_claim.total_amount_reimbursed = final_payable
     # --- Step 5: Final AI Sanity Check (The AI Auditor) ---
     print("\n--- Starting Step 5: Final AI Sanity Check ---")
 
