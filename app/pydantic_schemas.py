@@ -3,8 +3,9 @@
 from datetime import date
 from typing import List, Optional, Union
 
-from pydantic import BaseModel, Field, conint
+from pydantic import BaseModel, Field, conint, computed_field
 
+from uuid import UUID
 # Note: In a production financial system, using Decimal type is preferred
 # for monetary values to avoid floating-point inaccuracies.
 # For this version, we will use float for simplicity.
@@ -18,9 +19,9 @@ class LineItem(BaseModel):
     description: str = Field(..., description="Description of the service or item.")
     quantity: float = Field(..., gt=0, description="Quantity of the item/service.")
     unit_price: float = Field(
-        ..., ge=0, description="Price per unit of the item/service."
+        ..., description="Price per unit of the item/service."
     )
-    total_amount: float = Field(..., ge=0, description="Total cost for this line item.")
+    total_amount: float = Field(..., description="Total cost for this line item.")
 
 
 class InsuranceDetails(BaseModel):
@@ -72,20 +73,38 @@ class ClaimIntakeResponse(BaseModel):
 class AdjudicatedLineItem(LineItem):
     """
     Represents a line item after adjudication rules have been applied.
+    The 'status' is now automatically computed based on the amounts.
     """
-
-    status: str = Field(
-        "Allowed", description="Status after adjudication (e.g., Allowed, Disallowed)."
-    )
+    # Note: The original 'status' field has been removed.
+    
     allowed_amount: float = Field(
-        ..., ge=0, description="The final amount allowed for this item."
+        ..., description="The final amount allowed for this item."
     )
     disallowed_amount: float = Field(
-        ..., ge=0, description="The amount disallowed for this item."
+        ..., description="The amount disallowed for this item."
     )
     reason: Optional[str] = Field(
         None, description="Reason for any adjustment or denial."
     )
+
+    @computed_field
+    @property
+    def status(self) -> str:
+        """
+        Computes the status based on the allowed and disallowed amounts.
+        """
+        total = self.allowed_amount + self.disallowed_amount
+        
+        if total == 0:
+            return "Allowed"
+        elif self.allowed_amount > 0 and self.disallowed_amount > 0:
+            return "Partially Allowed"
+        elif self.allowed_amount > 0 and self.disallowed_amount == 0:
+            return "Allowed"
+        else: # Covers the case where allowed_amount is 0
+            return "Disallowed"
+
+
 
 
 # --- NEW: Schema for the AI Auditor's response ---
@@ -110,43 +129,6 @@ class SanityCheckResult(BaseModel):
     )
 
 
-class AdjudicatedClaim(BaseModel):
-    """
-    The final response object containing the complete adjudication result.
-    """
-
-    hospital_name: str = Field(..., description="Name of the hospital.")
-    patient_name: str = Field(..., description="Name of the patient.")
-    bill_no: Optional[str] = Field(
-        None, description="The unique bill or invoice number."
-    )
-    bill_date: date = Field(..., description="Date the bill was issued.")
-    admission_date: date = Field(..., description="Date of patient admission.")
-    discharge_date: Optional[date] = Field(
-        None, description="Date of patient discharge (if present)."
-    )
-
-    adjudicated_line_items: List[AdjudicatedLineItem] = Field(
-        ..., description="The list of line items after adjudication."
-    )
-
-    # Final Calculated Totals
-    total_claimed_amount: float = Field(
-        ..., description="The gross amount originally claimed."
-    )
-    total_allowed_amount: float = Field(
-        ..., description="The total amount allowed after adjudication."
-    )
-    adjustments_log: list[str] = Field(
-        ..., description="The adjustment made on the bill due to policy rules"
-    )
-    # --- ADD THIS NEW FIELD ---
-    sanity_check_result: Optional[SanityCheckResult] = Field(
-        None, description="The result from the final AI-powered sanity check."
-    )
-
-    class Config:
-        from_attributes = True
 
 
 # app/schemas.py
@@ -302,3 +284,90 @@ class Policy(BaseModel):
 
     class Config:
         from_attributes = True  # Allows creating Pydantic model from ORM model
+
+
+
+# --- NEW: Response model for the /extract endpoint ---
+class ExtractionResponse(BaseModel):
+    """
+    The response sent back after a successful extraction, containing the
+    claim_id needed for the next step.
+    """
+    claim_id: UUID
+    extracted_data: ExtractedDataWithConfidence
+
+# --- NEW: Request body model for the /adjudicate endpoint ---
+class AdjudicationRequest(BaseModel):
+    """
+    The request body for the adjudication endpoint, containing the
+    human-verified extracted data and the policy details.
+    """
+    extracted_data: ExtractedData
+    insurance_details: InsuranceDetails
+
+
+
+# --- NEW: Schema for the Performance Report ---
+class PerformanceReport(BaseModel):
+    """Holds all the timing and count metrics for a claim's lifecycle."""
+
+    # Extraction Metrics
+    num_pages: Optional[int] = None
+    extract_processing_time_sec: Optional[float] = None
+    extract_cost_usd: Optional[float] = None  # Placeholder for future use
+
+    # Adjudication Metrics
+    total_items_processed: Optional[int] = None
+    rules_applied_count: Optional[int] = None
+    adjudicate_processing_time_sec: Optional[float] = None
+    time_irda_filter_sec: Optional[float] = None
+    time_rule_matching_sec: Optional[float] = None
+    time_rule_application_sec: Optional[float] = None
+    time_sanity_check_sec: Optional[float] = None
+    cost_rule_matching_usd: Optional[float] = None  # Placeholder for future use
+    cost_rule_application_usd: Optional[float] = None  # Placeholder for future use
+    cost_sanity_check_usd: Optional[float] = None  # Placeholder for future use
+
+    class Config:
+        from_attributes = True
+
+
+
+class AdjudicatedClaim(BaseModel):
+    """
+    The final response object containing the complete adjudication result.
+    """
+    # claim_id: UUID
+    hospital_name: str = Field(..., description="Name of the hospital.")
+    patient_name: str = Field(..., description="Name of the patient.")
+    bill_no: Optional[str] = Field(
+        None, description="The unique bill or invoice number."
+    )
+    bill_date: date = Field(..., description="Date the bill was issued.")
+    admission_date: date = Field(..., description="Date of patient admission.")
+    discharge_date: Optional[date] = Field(
+        None, description="Date of patient discharge (if present)."
+    )
+
+    adjudicated_line_items: List[AdjudicatedLineItem] = Field(
+        ..., description="The list of line items after adjudication."
+    )
+
+    # Final Calculated Totals
+    total_claimed_amount: float = Field(
+        ..., description="The gross amount originally claimed."
+    )
+    total_allowed_amount: float = Field(
+        ..., description="The total amount allowed after adjudication."
+    )
+    adjustments_log: list[str] = Field(
+        ..., description="The adjustment made on the bill due to policy rules"
+    )
+    # --- ADD THIS NEW FIELD ---
+    sanity_check_result: Optional[SanityCheckResult] = Field(
+        None, description="The result from the final AI-powered sanity check."
+    )
+    performance_report: Optional[PerformanceReport] = None
+    class Config:
+        from_attributes = True
+

@@ -219,11 +219,11 @@ def convert_pdf_to_base64_images(file_content: bytes) -> list[str]:
         )
 
 
-async def extract_data_from_bill(file: UploadFile) -> ExtractedDataWithConfidence:
+async def extract_data_from_bill(file_content: bytes) -> ExtractedDataWithConfidence:
     """
     Orchestrates file conversion and AI data extraction using the Gemini 2.5 Pro model.
     """
-    file_content = await file.read()
+    # file_content = await file.read()
     base64_images = convert_pdf_to_base64_images(file_content)
 
     # --- NEW: Gemini API Call ---

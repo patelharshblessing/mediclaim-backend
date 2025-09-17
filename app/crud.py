@@ -164,3 +164,88 @@ def get_user(db: Session, username: str):
         .filter(models.User.username == username)
         .first()
     )
+
+
+
+# --- UPDATED FUNCTION ---
+def create_claim_with_log(
+    db: Session,
+    user_id: int,
+    filename: str,
+    # The 'extracted_data' parameter has been removed from this function.
+    num_pages: int,
+    extract_time: float,
+) -> models.Claim:
+    """
+    Creates an initial Claim record and its associated PerformanceLog.
+    The 'extracted_data' field is intentionally left NULL until human verification.
+    """
+    # Create the main claim record
+    db_claim = models.Claim(
+        submitted_by_user_id=user_id,
+        original_pdf_filename=filename,
+        # The 'extracted_data' is not saved here. It will be saved in the update step.
+        status="extracted",
+    )
+
+    # Create the associated performance log with extraction metrics
+    db_performance_log = models.PerformanceLog(
+        num_pages=num_pages,
+        extract_processing_time_sec=extract_time,
+        claim=db_claim,
+    )
+
+    db.add(db_claim)
+    db.commit()
+    db.refresh(db_claim)
+
+    return db_claim
+
+
+# --- UPDATED FUNCTION ---
+def update_claim_after_adjudication(
+    db: Session,
+    claim_id: UUID,
+    policy_id: str,
+    # Add the final, human-verified 'extracted_data' as a parameter.
+    extracted_data: schemas.ExtractedData,
+    adjudicated_data: schemas.AdjudicatedClaim,
+    perf_metrics: dict,
+) -> models.Claim | None:
+    """
+    Updates an existing claim with the final verified extracted data,
+    adjudication results, and performance metrics.
+    """
+    db_claim = (
+        db.query(models.Claim)
+        .options(joinedload(models.Claim.performance_log))
+        .filter(models.Claim.claim_id == claim_id)
+        .first()
+    )
+
+    if not db_claim:
+        return None
+
+    # Update the main claim fields
+    db_claim.policy_id = policy_id
+    # Save the final, human-verified extracted_data here.
+    db_claim.extracted_data = extracted_data.model_dump(mode="json")
+    db_claim.adjudicated_data = adjudicated_data.model_dump(mode="json")
+    db_claim.status = "adjudicated"
+
+    # Update the associated performance log with adjudication metrics
+    if db_claim.performance_log:
+        log = db_claim.performance_log
+        log.total_items_processed = perf_metrics.get("total_items_processed")
+        log.rules_applied_count = perf_metrics.get("rules_applied_count")
+        log.adjudicate_processing_time_sec = perf_metrics.get(
+            "adjudicate_processing_time_sec"
+        )
+        log.time_irda_filter_sec = perf_metrics.get("time_irda_filter_sec")
+        log.time_rule_matching_sec = perf_metrics.get("time_rule_matching_sec")
+        log.time_rule_application_sec = perf_metrics.get("time_rule_application_sec")
+        log.time_sanity_check_sec = perf_metrics.get("time_sanity_check_sec")
+
+    db.commit()
+    db.refresh(db_claim)
+    return db_claim

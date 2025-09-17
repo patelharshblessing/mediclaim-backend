@@ -50,3 +50,5 @@ anthropic
 ruff
 black
 pre-commit
+
+alembic
