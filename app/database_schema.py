@@ -1,7 +1,7 @@
 # app/models.py
 import uuid
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, func, Float
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 
@@ -38,12 +38,9 @@ class Policy(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
 
-
-
-
-
 class Claim(Base):
     """Represents a claim submitted by a user."""
+
     __tablename__ = "claims"
     claim_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     submitted_by_user_id = Column(Integer, ForeignKey("users.user_id"))
@@ -96,6 +93,3 @@ class PerformanceLog(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     claim = relationship("Claim", back_populates="performance_log")
-
-
-

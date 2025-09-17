@@ -139,8 +139,6 @@
 #         )
 
 
-
-
 # app/ai_processor.py
 import base64
 import json

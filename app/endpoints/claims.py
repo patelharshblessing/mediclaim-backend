@@ -1,6 +1,8 @@
 # app/endpoints.py
 
+import time
 from datetime import timedelta
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from fastapi.responses import JSONResponse
@@ -12,24 +14,22 @@ from .. import auth, crud
 from ..config import settings
 from ..database import get_db
 from ..limiter import limiter  # Import the limiter instance
+from ..normalization_service import NormalizationService
 from ..pydantic_schemas import (
     AdjudicatedClaim,
+    AdjudicationRequest,
     ExtractedData,
     ExtractedDataWithConfidence,
+    ExtractionResponse,
     InsuranceDetails,
+    PerformanceReport,
     Token,
     User,
-    ExtractionResponse,
-    AdjudicationRequest,
-    PerformanceReport,
 )
 from ..rules_engine import adjudicate_claim
 
 # from ..value_extractor import extract_data_from_bill
 from ..value_extractor import extract_data_from_bill
-import time
-from uuid import UUID
-from ..normalization_service import NormalizationService
 
 # import db
 db = get_db()
@@ -40,6 +40,7 @@ claims_router = APIRouter()
 
 from pdf2image import convert_from_bytes
 
+
 def count_pdf_pages(file_content: bytes) -> int:
     """Helper function to count pages in a PDF."""
     try:
@@ -48,6 +49,7 @@ def count_pdf_pages(file_content: bytes) -> int:
     except Exception:
         # If pdf2image fails, return a default/error value
         return 0
+
 
 @claims_router.post("/extract", response_model=ExtractionResponse)
 @limiter.limit("10/minute")
@@ -88,9 +90,8 @@ async def create_extraction_request(
     # --- 3. Return the claim_id and extracted data for human review ---
     return ExtractionResponse(
         claim_id=db_claim.claim_id,
-        extracted_data=ExtractedDataWithConfidence(**extracted_data.dict())
+        extracted_data=ExtractedDataWithConfidence(**extracted_data.dict()),
     )
-
 
 
 @claims_router.post("/adjudicate/{claim_id}", response_model=AdjudicatedClaim)
@@ -107,11 +108,11 @@ async def create_adjudication_request(
     This is the second step in the workflow.
     """
     normalizationservice = NormalizationService()
-        # --- 1. Run the Adjudication Rules Engine ---
+    # --- 1. Run the Adjudication Rules Engine ---
     adjudicated_result, perf_metrics = await adjudicate_claim(
         extracted_data=adjudication_req.extracted_data,
         insurance_details=adjudication_req.insurance_details,
-        normalizationservice=normalizationservice
+        normalizationservice=normalizationservice,
     )
 
     # --- 2. Update the Claim and Log in DB ---
@@ -138,11 +139,11 @@ async def create_adjudication_request(
     return adjudicated_result
 
 
+from typing import List
 from uuid import UUID
 
 from .. import pydantic_schemas as schemas
 
-from typing import List
 
 @claims_router.get("/{claim_id}", response_model=AdjudicatedClaim)
 @limiter.limit("10/minute")
@@ -157,11 +158,13 @@ async def read_claim(
     """
     db_claim = crud.get_claim_by_id(db, claim_id=claim_id)
     if db_claim is None or db_claim.adjudicated_data is None:
-        raise HTTPException(status_code=404, detail="Claim not found or not adjudicated.")
+        raise HTTPException(
+            status_code=404, detail="Claim not found or not adjudicated."
+        )
 
     if db_claim.submitted_by_user_id != current_user.user_id:
         raise HTTPException(status_code=403, detail="Not authorized to view this claim")
-    
+
     # Parse the stored JSON back into the Pydantic model
     adjudicated_claim_data = AdjudicatedClaim.model_validate(db_claim.adjudicated_data)
 
@@ -169,9 +172,9 @@ async def read_claim(
     if db_claim.performance_log:
         perf_report = PerformanceReport.from_orm(db_claim.performance_log)
         adjudicated_claim_data.performance_report = perf_report
-        
+
     adjudicated_claim_data.claim_id = db_claim.claim_id
-    
+
     return adjudicated_claim_data
 
 
@@ -190,16 +193,16 @@ async def read_claims(
     db_claims = crud.get_claims_by_user(
         db, user_id=current_user.user_id, skip=skip, limit=limit
     )
-    
+
     response_claims = []
     for claim in db_claims:
-        if claim.adjudicated_data: # Only include adjudicated claims
+        if claim.adjudicated_data:  # Only include adjudicated claims
             claim_data = AdjudicatedClaim.model_validate(claim.adjudicated_data)
             # claim_data.claim_id = claim.claim_id
             if claim.performance_log:
-                claim_data.performance_report = PerformanceReport.from_orm(claim.performance_log)
+                claim_data.performance_report = PerformanceReport.from_orm(
+                    claim.performance_log
+                )
             response_claims.append(claim_data)
-            
+
     return response_claims
-
-

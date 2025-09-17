@@ -166,7 +166,6 @@ def get_user(db: Session, username: str):
     )
 
 
-
 # --- UPDATED FUNCTION ---
 def create_claim_with_log(
     db: Session,

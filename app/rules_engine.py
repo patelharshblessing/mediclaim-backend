@@ -226,14 +226,23 @@ from fastapi import HTTPException
 # Add the root project directory to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from uuid import UUID
+
 from app.data.master_data import POLICY_RULEBOOK
 from app.normalization_service import NormalizationService
-from app.pydantic_schemas import (AdjudicatedClaim, AdjudicatedLineItem,
-                                  ExtractedData, InsuranceDetails)
-from app.rules_utils import (apply_policy_rule_with_llm_tools,
-                             get_rule_match_with_llm,
-                             identify_non_payable_items, run_final_sanity_check)
-from uuid import UUID
+from app.pydantic_schemas import (
+    AdjudicatedClaim,
+    AdjudicatedLineItem,
+    ExtractedData,
+    InsuranceDetails,
+)
+from app.rules_utils import (
+    apply_policy_rule_with_llm_tools,
+    get_rule_match_with_llm,
+    identify_non_payable_items,
+    run_final_sanity_check,
+)
+
 
 async def adjudicate_claim(
     extracted_data: ExtractedData,
@@ -289,7 +298,6 @@ async def adjudicate_claim(
         admission_date=extracted_data.admission_date,
         discharge_date=extracted_data.discharge_date,
         # --- END OF CHANGE ---
-
         adjudicated_line_items=initial_adjudicated_items,
         total_claimed_amount=extracted_data.net_payable_amount,
         total_allowed_amount=extracted_data.net_payable_amount,
@@ -311,7 +319,7 @@ async def adjudicate_claim(
             item.disallowed_amount = item.total_amount
             item.reason = "Non-payable item as per IRDAI guidelines."
             # item.status = "Disallowed"
-    
+
     if total_disallowed_IRDAI > 0.0:
         adjudicated_claim.adjustments_log.append(
             f"Items disallowed as per IRDAI non-payable list: -₹{total_disallowed_IRDAI:,.2f}"
@@ -322,10 +330,13 @@ async def adjudicate_claim(
     step2_start_time = time.monotonic()
     sub_limits = policy.get("sub_limits", {})
     items_to_process = [
-        item for item in adjudicated_claim.adjudicated_line_items if item.status != "Disallowed"
+        item
+        for item in adjudicated_claim.adjudicated_line_items
+        if item.status != "Disallowed"
     ]
     match_tasks = [
-        get_rule_match_with_llm(item.description, sub_limits) for item in items_to_process
+        get_rule_match_with_llm(item.description, sub_limits)
+        for item in items_to_process
     ]
     matched_rule_names = await asyncio.gather(*match_tasks)
     perf_metrics["time_rule_matching_sec"] = time.monotonic() - step2_start_time
@@ -335,16 +346,18 @@ async def adjudicate_claim(
     sum_insured = policy["sum_insured"]
     update_tasks = []
     final_adjudicated_items = []
-    
+
     for item, rule_name in zip(items_to_process, matched_rule_names):
         if rule_name and rule_name in sub_limits:
             policy_rule_to_apply = sub_limits[rule_name]
             update_tasks.append(
-                apply_policy_rule_with_llm_tools(item, policy_rule_to_apply, sum_insured)
+                apply_policy_rule_with_llm_tools(
+                    item, policy_rule_to_apply, sum_insured
+                )
             )
         else:
             final_adjudicated_items.append(item)
-    
+
     updated_items = []
     if update_tasks:
         updated_items = await asyncio.gather(*update_tasks)
@@ -355,13 +368,15 @@ async def adjudicate_claim(
             adjudicated_claim.adjustments_log.append(
                 f"Item '{updated_item.description}' disallowed: -₹{updated_item.disallowed_amount:,.2f} ({updated_item.reason})"
             )
-    
+
     perf_metrics["rules_applied_count"] = len(updated_items)
     perf_metrics["time_rule_application_sec"] = time.monotonic() - step3_start_time
 
     # Re-assemble the full list of items
     disallowed_items = [
-        item for item in adjudicated_claim.adjudicated_line_items if item.status == "Disallowed"
+        item
+        for item in adjudicated_claim.adjudicated_line_items
+        if item.status == "Disallowed"
     ]
     final_adjudicated_items.extend(disallowed_items)
     adjudicated_claim.adjudicated_line_items = final_adjudicated_items
@@ -392,11 +407,11 @@ async def adjudicate_claim(
     sanity_result = await run_final_sanity_check(adjudicated_claim)
     adjudicated_claim.sanity_check_result = sanity_result
     perf_metrics["time_sanity_check_sec"] = time.monotonic() - step5_start_time
-    
+
     # Final total time for adjudication
-    perf_metrics["adjudicate_processing_time_sec"] = time.monotonic() - total_adjudication_start_time
+    perf_metrics["adjudicate_processing_time_sec"] = (
+        time.monotonic() - total_adjudication_start_time
+    )
 
     print("--- ✅ Adjudication and Final Audit Complete ---")
     return adjudicated_claim, perf_metrics
-
-
