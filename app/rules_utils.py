@@ -413,13 +413,6 @@ gemini_llm = ChatGoogleGenerativeAI(
 llm_formatter = gemini_llm.with_structured_output(SanityCheckResult)
 
 
-FLAG_CATEGORIES = [
-    "Calculation Error",
-    "Logic Inconsistency",
-    "High Cost Anomaly",
-    "Missing Information",
-    "Policy Misinterpretation",
-]
 
 
 async def run_final_sanity_check(
