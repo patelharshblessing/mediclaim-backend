@@ -248,8 +248,6 @@ def identify_non_payable_items(
     return non_payable_items_found
 
 
-
-
 # --- NEW: Initialize the Gemini LLM for structured output ---
 llm_match = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
@@ -416,13 +414,12 @@ llm_formatter = gemini_llm.with_structured_output(SanityCheckResult)
 
 
 FLAG_CATEGORIES = [
-        "Calculation Error",
-        "Logic Inconsistency",
-        "High Cost Anomaly",
-        "Missing Information",
-        "Policy Misinterpretation"
-    ]
-
+    "Calculation Error",
+    "Logic Inconsistency",
+    "High Cost Anomaly",
+    "Missing Information",
+    "Policy Misinterpretation",
+]
 
 
 async def run_final_sanity_check(
@@ -436,7 +433,7 @@ async def run_final_sanity_check(
         "Logic Inconsistency",
         "High Cost Anomaly",
         "Missing Information",
-        "Policy Misinterpretation"
+        "Policy Misinterpretation",
     ]
 
     input_prompt = f"""
@@ -452,7 +449,7 @@ async def run_final_sanity_check(
     ---
     **Instructions:**
     1.  First, determine if the final adjudication is reasonable and consistent. Set `is_reasonable` to `true` or `false`.
-    2.  Second, provide a brief, one-sentence explanation for your decision in the `reasoning` field.
+    2.  Second, provide  explanation for your decision in the `reasoning` field in simple terms.
     3.  **Third, if `is_reasonable` is `false`, you MUST select one or more relevant flags from the `Predefined Flag Categories` list and add them to the `flags` array.** If everything is reasonable, the `flags` array should be empty.
 
     Respond ONLY with a valid JSON object following the specified schema.
