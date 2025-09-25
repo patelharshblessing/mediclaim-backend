@@ -27,8 +27,8 @@ __pycache__/
 # Local data files like the vector database
 # app/data/
 
-*.pkl
-*.index
+# *.pkl
+# *.index
 
 
 # --- IDE / Editor Configuration ---
