@@ -145,7 +145,9 @@ from uuid import UUID
 from .. import pydantic_schemas as schemas
 
 
-@claims_router.get("/{claim_id}",)
+@claims_router.get(
+    "/{claim_id}",
+)
 @limiter.limit("10/minute")
 async def read_claim(
     request: Request,

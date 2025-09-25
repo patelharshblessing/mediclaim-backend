@@ -465,25 +465,33 @@ else:
             else:
                 headers = {"Authorization": f"Bearer {st.session_state.access_token}"}
                 files = {"file": (uploaded_file.name, uploaded_file, "application/pdf")}
-                with st.spinner("Calling AI to extract data... This may take a moment."):
+                with st.spinner(
+                    "Calling AI to extract data... This may take a moment."
+                ):
                     response = requests.post(
                         f"{API_BASE_URL}/claims/extract", files=files, headers=headers
                     )
                     if response.status_code == 200:
                         response_json = response.json()
-                        st.session_state.extracted_data = response_json.get("extracted_data")
+                        st.session_state.extracted_data = response_json.get(
+                            "extracted_data"
+                        )
                         st.session_state.claim_id = response_json.get("claim_id")
                         st.session_state.adjudicated_data = None
                         with open(cache_path, "w") as f:
                             json.dump(response_json, f, indent=4)
-                        st.success("Data extracted and saved to cache! Please review below.")
+                        st.success(
+                            "Data extracted and saved to cache! Please review below."
+                        )
                     else:
                         st.error(f"Error: {response.status_code} - {response.text}")
 
     # --- Step 2: Verification & Adjudication ---
     if st.session_state.extracted_data:
         st.header("Step 2: Verify Data & Enter Policy Details")
-        st.info(f"Fields with low confidence (< {CONFIDENCE_THRESHOLD:.0%}) are highlighted. Please verify.")
+        st.info(
+            f"Fields with low confidence (< {CONFIDENCE_THRESHOLD:.0%}) are highlighted. Please verify."
+        )
 
         data = st.session_state.extracted_data
 
@@ -491,8 +499,13 @@ else:
         cols = st.columns(3)
         edited_header = {}
         header_keys = [
-            "hospital_name", "patient_name", "bill_no", "bill_date",
-            "admission_date", "discharge_date", "net_payable_amount",
+            "hospital_name",
+            "patient_name",
+            "bill_no",
+            "bill_date",
+            "admission_date",
+            "discharge_date",
+            "net_payable_amount",
         ]
 
         for i, key in enumerate(header_keys):
@@ -500,22 +513,31 @@ else:
                 field = data.get(key, {})
                 confidence = field.get("confidence", 1.0)
                 label = f"{key.replace('_', ' ').title()}"
-                
+
                 if confidence < CONFIDENCE_THRESHOLD:
-                    st.markdown(f'<p style="color:red; font-weight:bold;">{label}</p>', unsafe_allow_html=True)
+                    st.markdown(
+                        f'<p style="color:red; font-weight:bold;">{label}</p>',
+                        unsafe_allow_html=True,
+                    )
                 else:
                     st.write(f"**{label}**")
-                
+
                 if "date" in key:
-                    edited_header[key] = st.date_input("", value=to_datetime(field.get("value")), key=key)
+                    edited_header[key] = st.date_input(
+                        "", value=to_datetime(field.get("value")), key=key
+                    )
                 else:
-                    edited_header[key] = st.text_input("", value=field.get("value"), key=key)
-        
+                    edited_header[key] = st.text_input(
+                        "", value=field.get("value"), key=key
+                    )
+
         with cols[len(header_keys) % 3]:
             policy_number = st.text_input("Policy Number", value="POL-98765-ABC")
         with cols[(len(header_keys) + 1) % 3]:
-            insurance_provider = st.text_input("Insurance Provider", value="SecureHealth Insurance Ltd.")
-        
+            insurance_provider = st.text_input(
+                "Insurance Provider", value="SecureHealth Insurance Ltd."
+            )
+
         # --- REVERTED: Using individual inputs for line items as requested ---
         st.subheader("Itemized Charges")
         edited_line_items_data = []
@@ -527,35 +549,69 @@ else:
                 with col1:
                     field_data = item.get("description", {})
                     if field_data.get("confidence", 1.0) < CONFIDENCE_THRESHOLD:
-                        st.markdown('<p style="color:red;">**Description**</p>', unsafe_allow_html=True)
+                        st.markdown(
+                            '<p style="color:red;">**Description**</p>',
+                            unsafe_allow_html=True,
+                        )
                     else:
                         st.write("**Description**")
-                    edited_item["description"] = st.text_input("desc", value=field_data.get("value"), key=f"desc_{i}", label_visibility="collapsed")
-                
+                    edited_item["description"] = st.text_input(
+                        "desc",
+                        value=field_data.get("value"),
+                        key=f"desc_{i}",
+                        label_visibility="collapsed",
+                    )
+
                 with col2:
                     field_data = item.get("quantity", {})
                     if field_data.get("confidence", 1.0) < CONFIDENCE_THRESHOLD:
-                        st.markdown('<p style="color:red;">**Quantity**</p>', unsafe_allow_html=True)
+                        st.markdown(
+                            '<p style="color:red;">**Quantity**</p>',
+                            unsafe_allow_html=True,
+                        )
                     else:
                         st.write("**Quantity**")
-                    edited_item["quantity"] = st.number_input("qty", value=float(field_data.get("value") or 1.0), key=f"qty_{i}", label_visibility="collapsed")
+                    edited_item["quantity"] = st.number_input(
+                        "qty",
+                        value=float(field_data.get("value") or 1.0),
+                        key=f"qty_{i}",
+                        label_visibility="collapsed",
+                    )
 
                 with col3:
                     field_data = item.get("unit_price", {})
                     if field_data.get("confidence", 1.0) < CONFIDENCE_THRESHOLD:
-                        st.markdown('<p style="color:red;">**Unit Price**</p>', unsafe_allow_html=True)
+                        st.markdown(
+                            '<p style="color:red;">**Unit Price**</p>',
+                            unsafe_allow_html=True,
+                        )
                     else:
                         st.write("**Unit Price**")
-                    edited_item["unit_price"] = st.number_input("price", value=float(field_data.get("value") or 0.0), key=f"price_{i}", format="%.2f", label_visibility="collapsed")
+                    edited_item["unit_price"] = st.number_input(
+                        "price",
+                        value=float(field_data.get("value") or 0.0),
+                        key=f"price_{i}",
+                        format="%.2f",
+                        label_visibility="collapsed",
+                    )
 
                 with col4:
                     field_data = item.get("total_amount", {})
                     if field_data.get("confidence", 1.0) < CONFIDENCE_THRESHOLD:
-                        st.markdown('<p style="color:red;">**Total Amount**</p>', unsafe_allow_html=True)
+                        st.markdown(
+                            '<p style="color:red;">**Total Amount**</p>',
+                            unsafe_allow_html=True,
+                        )
                     else:
                         st.write("**Total Amount**")
-                    edited_item["total_amount"] = st.number_input("total", value=float(field_data.get("value") or 0.0), key=f"total_{i}", format="%.2f", label_visibility="collapsed")
-                
+                    edited_item["total_amount"] = st.number_input(
+                        "total",
+                        value=float(field_data.get("value") or 0.0),
+                        key=f"total_{i}",
+                        format="%.2f",
+                        label_visibility="collapsed",
+                    )
+
                 edited_line_items_data.append(edited_item)
                 st.markdown("---")
         # --- END OF REVERTED SECTION ---
@@ -564,7 +620,7 @@ else:
             final_data_for_adjudication = edited_header
             # --- CHANGE: Use the list of dicts from the reverted section ---
             final_data_for_adjudication["line_items"] = edited_line_items_data
-            
+
             for key in ["bill_date", "admission_date", "discharge_date"]:
                 value = final_data_for_adjudication.get(key)
                 if isinstance(value, date):
@@ -577,7 +633,7 @@ else:
                     "insurance_provider": insurance_provider,
                 },
             }
-            
+
             headers = {"Authorization": f"Bearer {st.session_state.access_token}"}
             with st.spinner("Applying rules and adjudicating..."):
                 response = requests.post(
@@ -601,36 +657,42 @@ else:
         with cols[0]:
             st.metric("Total Claimed", f"₹{res.get('total_claimed_amount', 0):,.2f}")
         with cols[1]:
-            st.metric("Final Amount Payable", f"₹{res.get('total_allowed_amount', 0):,.2f}")
+            st.metric(
+                "Final Amount Payable", f"₹{res.get('total_allowed_amount', 0):,.2f}"
+            )
 
         if res.get("adjustments_log"):
             st.subheader("Adjustments Log")
             for adjustment in res["adjustments_log"]:
                 st.info(f"{adjustment}")
-        
+
         if res.get("sanity_check_result"):
             st.subheader("AI Sanity Check")
             sanity = res["sanity_check_result"]
             if sanity.get("is_reasonable"):
-                st.success(f"**Verdict:** Looks Reasonable. {sanity.get('reasoning', '')}")
+                st.success(
+                    f"**Verdict:** Looks Reasonable. {sanity.get('reasoning', '')}"
+                )
             else:
-                st.warning(f"**Verdict:** Review Recommended. {sanity.get('reasoning', '')}")
+                st.warning(
+                    f"**Verdict:** Review Recommended. {sanity.get('reasoning', '')}"
+                )
             if sanity.get("flags"):
                 st.write("**Flags:**")
                 for flag in sanity["flags"]:
                     st.error(f"🚩 {flag}")
-        
+
         st.subheader("Adjudicated Line Items")
         st.dataframe(pd.DataFrame(res.get("adjudicated_line_items", [])))
-                
+
         # --- NEW: Expandable Performance Report ---
         if res.get("performance_report"):
             st.markdown("---")
             with st.expander("Show Performance & Processing Details ⏱️"):
                 perf = res["performance_report"]
-                
+
                 c1, c2 = st.columns(2)
-                
+
                 # Extraction Metrics
                 with c1:
                     st.subheader("Extraction")
@@ -658,7 +720,7 @@ else:
                         label="Rules Applied",
                         value=f"{perf.get('rules_applied_count', 0)}",
                     )
-                
+
                 # Detailed Breakdown
                 st.subheader("Adjudication Step-by-Step Timings")
                 st.text(

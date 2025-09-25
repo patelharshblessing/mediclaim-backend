@@ -2,7 +2,7 @@
 
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status,Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
 from .. import auth, crud, pydantic_schemas
@@ -141,14 +141,14 @@ async def login_for_access_token(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-
-
 # --- NEW ENDPOINT: For fetching latest performance metrics ---
 @admin_router.get("/performance/latest")
 @limiter.limit("30/minute")
 async def get_latest_performance_metrics(
     request: Request,
-    k: int = Query(10, ge=1, le=100, description="The number of latest claims to fetch."),
+    k: int = Query(
+        10, ge=1, le=100, description="The number of latest claims to fetch."
+    ),
     db: Session = Depends(get_db),
     current_admin: pydantic_schemas.User = Depends(auth.get_current_admin_user),
 ):
@@ -159,5 +159,3 @@ async def get_latest_performance_metrics(
     logs = crud.get_latest_performance_logs(db, limit=k)
     # print(logs)
     return logs
-
-

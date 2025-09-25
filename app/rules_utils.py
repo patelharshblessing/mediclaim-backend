@@ -500,13 +500,18 @@ from langchain_openai import ChatOpenAI
 
 from app.config import settings
 from app.normalization_service import NormalizationService
-from app.pydantic_schemas import (AdjudicatedClaim, AdjudicatedLineItem,
-                                  LineItem, PolicyRuleMatch, SanityCheckResult)
-
+from app.pydantic_schemas import (
+    AdjudicatedClaim,
+    AdjudicatedLineItem,
+    LineItem,
+    PolicyRuleMatch,
+    SanityCheckResult,
+)
 
 # ==============================================================================
 # 1. IDENTIFY NON-PAYABLE ITEMS (Deterministic)
 # ==============================================================================
+
 
 def identify_non_payable_items(
     line_items: list[LineItem], service: NormalizationService
@@ -541,19 +546,37 @@ async def get_rule_match_with_llm(
 ) -> str | None:
     """Uses LLM to find a matching rule, with a fallback from Gemini to GPT-5."""
     list_of_rule_names = [k for k, v in sub_limits.items() if v is not None]
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are an expert insurance adjudicator. Your task is to match a medical bill item to a specific policy rule. Respond only with the name of the matching rule or null."),
-        ("human", "Medical Item Description: '{item_description}'\n\nAvailable Policy Rules: {list_of_rule_names}"),
-    ])
-    
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "You are an expert insurance adjudicator. Your task is to match a medical bill item to a specific policy rule. Respond only with the name of the matching rule or null.",
+            ),
+            (
+                "human",
+                "Medical Item Description: '{item_description}'\n\nAvailable Policy Rules: {list_of_rule_names}",
+            ),
+        ]
+    )
+
     try:
         print(f"Attempting rule match for '{item_description}' with Gemini...")
         chain = prompt | structured_gemini_match
-        response = await chain.ainvoke({"item_description": item_description, "list_of_rule_names": list_of_rule_names})
+        response = await chain.ainvoke(
+            {
+                "item_description": item_description,
+                "list_of_rule_names": list_of_rule_names,
+            }
+        )
     except Exception as e:
         print(f"Gemini rule match failed: {e}. Falling back to GPT-5.")
         chain = prompt | structured_openai_match
-        response = await chain.ainvoke({"item_description": item_description, "list_of_rule_names": list_of_rule_names})
+        response = await chain.ainvoke(
+            {
+                "item_description": item_description,
+                "list_of_rule_names": list_of_rule_names,
+            }
+        )
 
     if response and response.applicable_rule_name:
         return response.applicable_rule_name
@@ -564,31 +587,37 @@ async def get_rule_match_with_llm(
 # 3. RULE APPLICATION (with Fallback)
 # ==============================================================================
 
+
 # --- Agent Tools (Model-Agnostic) ---
 @tool
 def multiply(a: float, b: float) -> float:
     """Multiplies two numbers."""
     return operator.mul(a, b)
 
+
 @tool
 def divide(a: float, b: float) -> float:
     """Divides two numbers."""
     return operator.truediv(a, b)
+
 
 @tool
 def add(a: float, b: float) -> float:
     """Adds two numbers."""
     return operator.add(a, b)
 
+
 @tool
 def subtract(a: float, b: float) -> float:
     """Subtracts two numbers."""
     return operator.sub(a, b)
 
+
 @tool
 def percentage(part: float, whole: float) -> float:
     """Calculates what 'part' percentage of 'whole' is."""
     return (part / 100) * whole
+
 
 tools = [multiply, divide, add, subtract, percentage]
 
@@ -612,22 +641,37 @@ Your task is to apply a single policy rule to a single line item and calculate t
 Provide your final answer by summarizing the updated AdjudicatedLineItem object.
 """,
         ),
-        ("human", "Apply the policy rule to the line item based on the following context:\n{input}"),
+        (
+            "human",
+            "Apply the policy rule to the line item based on the following context:\n{input}",
+        ),
         ("placeholder", "{agent_scratchpad}"),
     ]
 )
 
 # --- Agent and Formatter Setup ---
-gemini_agent_llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", google_api_key=settings.GEMINI_API_KEY, temperature=0.0)
+gemini_agent_llm = ChatGoogleGenerativeAI(
+    model="gemini-2.5-pro", google_api_key=settings.GEMINI_API_KEY, temperature=0.0
+)
 gemini_agent = create_tool_calling_agent(gemini_agent_llm, tools, AGENT_PROMPT)
-gemini_agent_executor = AgentExecutor(agent=gemini_agent, tools=tools, verbose=True).with_retry()
-gemini_formatter = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=settings.GEMINI_API_KEY, temperature=0.0)
+gemini_agent_executor = AgentExecutor(
+    agent=gemini_agent, tools=tools, verbose=True
+).with_retry()
+gemini_formatter = ChatGoogleGenerativeAI(
+    model="gemini-2.5-flash", google_api_key=settings.GEMINI_API_KEY, temperature=0.0
+)
 structured_gemini_final = gemini_formatter.with_structured_output(AdjudicatedLineItem)
 
-openai_agent_llm = ChatOpenAI(model="gpt-4o", openai_api_key=settings.OPENAI_API_KEY, temperature=0.0)
+openai_agent_llm = ChatOpenAI(
+    model="gpt-4o", openai_api_key=settings.OPENAI_API_KEY, temperature=0.0
+)
 openai_agent = create_tool_calling_agent(openai_agent_llm, tools, AGENT_PROMPT)
-openai_agent_executor = AgentExecutor(agent=openai_agent, tools=tools, verbose=True).with_retry()
-openai_formatter = ChatOpenAI(model="gpt-4o", openai_api_key=settings.OPENAI_API_KEY, temperature=0.0)
+openai_agent_executor = AgentExecutor(
+    agent=openai_agent, tools=tools, verbose=True
+).with_retry()
+openai_formatter = ChatOpenAI(
+    model="gpt-4o", openai_api_key=settings.OPENAI_API_KEY, temperature=0.0
+)
 structured_openai_final = openai_formatter.with_structured_output(AdjudicatedLineItem)
 
 
@@ -638,9 +682,11 @@ async def apply_policy_rule_with_llm_tools(
     if item.status == "Disallowed":
         return item
     input_prompt = f"- Current Line Item: {item.model_dump_json()}\n- Policy Rule to Apply: {policy_rule}\n- Total sum insured: {sum_insured}"
-    
+
     try:
-        print(f"Attempting rule application for '{item.description}' with Gemini agent...")
+        print(
+            f"Attempting rule application for '{item.description}' with Gemini agent..."
+        )
         result = await gemini_agent_executor.ainvoke({"input": input_prompt})
         format_prompt = f"Format the following text into the specified structure: {result['output']}"
         final_result = await structured_gemini_final.ainvoke(format_prompt)
@@ -649,7 +695,7 @@ async def apply_policy_rule_with_llm_tools(
         result = await openai_agent_executor.ainvoke({"input": input_prompt})
         format_prompt = f"Format the following text into the specified structure: {result['output']}"
         final_result = await structured_openai_final.ainvoke(format_prompt)
-        
+
     return final_result
 
 
@@ -662,14 +708,18 @@ FLAG_CATEGORIES = [
     "Logic Inconsistency",
     "High Cost Anomaly",
     "Missing Information",
-    "Policy Misinterpretation"
+    "Policy Misinterpretation",
 ]
 
 # --- LLM Clients for Sanity Check ---
-gemini_sanity_llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", google_api_key=settings.GEMINI_API_KEY, temperature=0.0)
+gemini_sanity_llm = ChatGoogleGenerativeAI(
+    model="gemini-2.5-pro", google_api_key=settings.GEMINI_API_KEY, temperature=0.0
+)
 gemini_sanity_formatter = gemini_sanity_llm.with_structured_output(SanityCheckResult)
 
-openai_sanity_llm = ChatOpenAI(model="gpt-4o", openai_api_key=settings.OPENAI_API_KEY, temperature=0.0)
+openai_sanity_llm = ChatOpenAI(
+    model="gpt-4o", openai_api_key=settings.OPENAI_API_KEY, temperature=0.0
+)
 openai_sanity_formatter = openai_sanity_llm.with_structured_output(SanityCheckResult)
 
 
@@ -696,7 +746,7 @@ async def run_final_sanity_check(
     Respond ONLY with a valid JSON object following the specified schema.
     ---
     """
-    
+
     try:
         print("Attempting sanity check with Gemini...")
         response = await gemini_sanity_formatter.ainvoke(input_prompt)

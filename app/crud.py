@@ -1,5 +1,6 @@
 # app/crud.py
 
+from typing import List
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -7,7 +8,6 @@ from sqlalchemy.orm import Session
 from . import auth
 from . import database_schema as models
 from . import pydantic_schemas as schemas
-from typing import List
 
 
 def create_claim_record(
@@ -252,7 +252,11 @@ def update_claim_after_adjudication(
 
 
 from sqlalchemy.orm import joinedload
-def get_latest_performance_logs(db: Session, limit: int = 10) -> List[models.PerformanceLog]:
+
+
+def get_latest_performance_logs(
+    db: Session, limit: int = 10
+) -> List[models.PerformanceLog]:
     """
     Fetches the most recent performance log records from the database.
 

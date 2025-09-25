@@ -147,13 +147,12 @@ import json
 
 import httpx
 from fastapi import HTTPException, UploadFile, status
+from openai import OpenAI
 from pdf2image import convert_from_bytes
 from pydantic import ValidationError
 
 from .config import settings
 from .pydantic_schemas import ExtractedDataWithConfidence
-from openai import OpenAI
-
 
 # --- Initialize OpenAI Client ---
 openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
@@ -222,24 +221,27 @@ def convert_pdf_to_base64_images(file_content: bytes) -> list[str]:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to process PDF: {e}",
         )
-    
+
+
 # --- Helper function for the Gemini API call ---
 async def _call_gemini_api(base64_images: list[str]) -> dict:
     """Makes an API call to the Gemini 2.5 Pro model."""
     print("Attempting extraction with Gemini 2.5 Pro...")
-    
+
     # --- CHANGE: Updated model name to gemini-2.5-pro ---
     GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key={settings.GEMINI_API_KEY}"
-    
+
     request_parts = [{"text": MASTER_PROMPT}]
     for image_data in base64_images:
-        request_parts.append({"inline_data": {"mime_type": "image/jpeg", "data": image_data}})
+        request_parts.append(
+            {"inline_data": {"mime_type": "image/jpeg", "data": image_data}}
+        )
 
     payload = {
         "contents": [{"parts": request_parts}],
         "generationConfig": {"response_mime_type": "application/json"},
     }
-    
+
     async with httpx.AsyncClient(timeout=120.0) as client:
         response = await client.post(GEMINI_API_URL, json=payload)
         response.raise_for_status()
@@ -248,17 +250,20 @@ async def _call_gemini_api(base64_images: list[str]) -> dict:
     ai_response_str = result["candidates"][0]["content"]["parts"][0]["text"]
     return json.loads(ai_response_str)
 
+
 # --- Helper function for the OpenAI (GPT) API call ---
 async def _call_openai_api(base64_images: list[str]) -> dict:
     """Makes an API call to the GPT-5 model as a fallback."""
     print("Gemini failed. Attempting fallback extraction with GPT-5...")
-    
+
     messages = [{"role": "user", "content": [{"type": "text", "text": MASTER_PROMPT}]}]
     for image_data in base64_images:
-        messages[0]["content"].append({
-            "type": "image_url",
-            "image_url": {"url": f"data:image/jpeg;base64,{image_data}"}
-        })
+        messages[0]["content"].append(
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:image/jpeg;base64,{image_data}"},
+            }
+        )
 
     response = openai_client.chat.completions.create(
         # --- CHANGE: Updated model name to gpt-5 ---
@@ -266,13 +271,9 @@ async def _call_openai_api(base64_images: list[str]) -> dict:
         messages=messages,
         response_format={"type": "json_object"},
     )
-    
+
     ai_response_str = response.choices[0].message.content
     return json.loads(ai_response_str)
-
-
-
-
 
 
 # async def extract_data_from_bill(file_content: bytes) -> ExtractedDataWithConfidence:
@@ -333,7 +334,6 @@ async def _call_openai_api(base64_images: list[str]) -> dict:
 #         )
 
 
-
 # --- Main function with fallback logic ---
 async def extract_data_from_bill(file_content: bytes) -> ExtractedDataWithConfidence:
     """
@@ -341,14 +341,14 @@ async def extract_data_from_bill(file_content: bytes) -> ExtractedDataWithConfid
     Tries Gemini 2.5 Pro first, then falls back to GPT-5 if it fails.
     """
     base64_images = convert_pdf_to_base64_images(file_content)
-    
+
     providers = [
         {"name": "Gemini 2.5 Pro", "func": _call_gemini_api},
         {"name": "GPT-5", "func": _call_openai_api},
     ]
-    
+
     last_error = None
-    
+
     for provider in providers:
         try:
             ai_response_json = await provider["func"](base64_images)
