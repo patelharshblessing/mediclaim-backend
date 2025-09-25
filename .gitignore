@@ -25,7 +25,10 @@ __pycache__/
 .streamlit_cache/
 
 # Local data files like the vector database
-app/data/
+# app/data/
+
+*.pkl
+*.index
 
 
 # --- IDE / Editor Configuration ---

@@ -1,0 +1,22 @@
+Git
+.git
+.gitignore
+
+Docker
+Dockerfile
+docker-compose.yml
+
+Python
+pycache/
+*.pyc
+*.pyo
+*.pyd
+venv/
+.venv/
+
+Streamlit cache
+.streamlit_cache/
+
+IDE specific
+.idea/
+.vscode/
