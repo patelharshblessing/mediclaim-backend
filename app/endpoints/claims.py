@@ -135,7 +135,7 @@ async def create_adjudication_request(
     perf_report = PerformanceReport.from_orm(db_claim.performance_log)
     adjudicated_result.performance_report = perf_report
     # adjudicated_result.claim_id = db_claim.claim_id
-
+    print(adjudicated_result.performance_report)
     return adjudicated_result
 
 
@@ -145,7 +145,7 @@ from uuid import UUID
 from .. import pydantic_schemas as schemas
 
 
-@claims_router.get("/{claim_id}", response_model=AdjudicatedClaim)
+@claims_router.get("/{claim_id}",)
 @limiter.limit("10/minute")
 async def read_claim(
     request: Request,
@@ -164,21 +164,22 @@ async def read_claim(
 
     if db_claim.submitted_by_user_id != current_user.user_id:
         raise HTTPException(status_code=403, detail="Not authorized to view this claim")
+    return db_claim
 
-    # Parse the stored JSON back into the Pydantic model
-    adjudicated_claim_data = AdjudicatedClaim.model_validate(db_claim.adjudicated_data)
+    # # Parse the stored JSON back into the Pydantic model
+    # adjudicated_claim_data = AdjudicatedClaim.model_validate(db_claim.adjudicated_data)
 
-    # Populate the performance report from the log
-    if db_claim.performance_log:
-        perf_report = PerformanceReport.from_orm(db_claim.performance_log)
-        adjudicated_claim_data.performance_report = perf_report
+    # # Populate the performance report from the log
+    # if db_claim.performance_log:
+    #     perf_report = PerformanceReport.from_orm(db_claim.performance_log)
+    #     adjudicated_claim_data.performance_report = perf_report
 
-    adjudicated_claim_data.claim_id = db_claim.claim_id
+    # adjudicated_claim_data.claim_id = db_claim.claim_id
 
-    return adjudicated_claim_data
+    # return adjudicated_claim_data
 
 
-@claims_router.get("/", response_model=List[dict])
+@claims_router.get("/")
 @limiter.limit("10/minute")
 async def read_claims(
     request: Request,
@@ -194,15 +195,15 @@ async def read_claims(
         db, user_id=current_user.user_id, skip=skip, limit=limit
     )
 
-    response_claims = []
-    for claim in db_claims:
-        if claim.adjudicated_data:  # Only include adjudicated claims
-            claim_data = AdjudicatedClaim.model_validate(claim.adjudicated_data)
-            # claim_data.claim_id = claim.claim_id
-            if claim.performance_log:
-                claim_data.performance_report = PerformanceReport.from_orm(
-                    claim.performance_log
-                )
-            response_claims.append(claim_data)
+    # response_claims = []
+    # for claim in db_claims:
+    #     if claim.adjudicated_data:  # Only include adjudicated claims
+    #         claim_data = AdjudicatedClaim.model_validate(claim.adjudicated_data)
+    #         # claim_data.claim_id = claim.claim_id
+    #         if claim.performance_log:
+    #             claim_data.performance_report = PerformanceReport.from_orm(
+    #                 claim.performance_log
+    #             )
+    #         response_claims.append(claim_data.model_dump())
 
-    return response_claims
+    return db_claims

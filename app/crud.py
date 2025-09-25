@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from . import auth
 from . import database_schema as models
 from . import pydantic_schemas as schemas
+from typing import List
 
 
 def create_claim_record(
@@ -248,3 +249,20 @@ def update_claim_after_adjudication(
     db.commit()
     db.refresh(db_claim)
     return db_claim
+
+
+from sqlalchemy.orm import joinedload
+def get_latest_performance_logs(db: Session, limit: int = 10) -> List[models.PerformanceLog]:
+    """
+    Fetches the most recent performance log records from the database.
+
+    This function eagerly loads the related 'submitter' (User) to avoid
+    N+1 query problems.
+    """
+    return (
+        db.query(models.PerformanceLog)
+        # .options((joinedload(models.PerformanceLog.submitter)))
+        .order_by(models.PerformanceLog.created_at.desc())
+        .limit(limit)
+        .all()
+    )

@@ -2,7 +2,7 @@
 
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status,Query
 from sqlalchemy.orm import Session
 
 from .. import auth, crud, pydantic_schemas
@@ -67,8 +67,7 @@ def update_existing_user(
 @admin_router.get("/policies", response_model=List[pydantic_schemas.Policy])
 @limiter.limit("10/minute")
 def read_all_policies(
-    request,
-    Request,
+    request: Request,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
@@ -81,8 +80,7 @@ def read_all_policies(
 @admin_router.get("/policies/{policy_id}", response_model=pydantic_schemas.Policy)
 @limiter.limit("10/minute")
 def read_specific_policy(
-    request,
-    Request,
+    request: Request,
     policy_id: str,
     db: Session = Depends(get_db),
     current_admin: pydantic_schemas.User = Depends(auth.get_current_admin_user),
@@ -141,3 +139,25 @@ async def login_for_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+
+
+# --- NEW ENDPOINT: For fetching latest performance metrics ---
+@admin_router.get("/performance/latest")
+@limiter.limit("30/minute")
+async def get_latest_performance_metrics(
+    request: Request,
+    k: int = Query(10, ge=1, le=100, description="The number of latest claims to fetch."),
+    db: Session = Depends(get_db),
+    current_admin: pydantic_schemas.User = Depends(auth.get_current_admin_user),
+):
+    """
+    Fetches the performance metrics for the last K claims processed.
+    Accessible only by admin users.
+    """
+    logs = crud.get_latest_performance_logs(db, limit=k)
+    # print(logs)
+    return logs
+
+

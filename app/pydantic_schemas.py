@@ -5,6 +5,7 @@ from typing import List, Optional, Union
 from uuid import UUID
 
 from pydantic import BaseModel, Field, computed_field, conint
+from datetime import datetime
 
 # Note: In a production financial system, using Decimal type is preferred
 # for monetary values to avoid floating-point inaccuracies.
@@ -364,6 +365,27 @@ class AdjudicatedClaim(BaseModel):
         None, description="The result from the final AI-powered sanity check."
     )
     performance_report: Optional[PerformanceReport] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ClaimPerformanceMetrics(BaseModel):
+    """
+    Represents the performance metrics for a single claim, designed for the admin dashboard.
+    """
+    claim_id: UUID
+    created_at: datetime
+    # submitter: User  # Nests the simple User schema to show who submitted
+    
+    # Key Performance Indicators
+    extraction_time_seconds: Optional[float] = None
+    total_adjudication_time_seconds: Optional[float] = None
+    
+    # Additional Context
+    page_count: Optional[int] = None
+    line_item_count: Optional[int] = None
+    rules_applied_count: Optional[int] = None
 
     class Config:
         from_attributes = True

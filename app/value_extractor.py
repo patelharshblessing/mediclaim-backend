@@ -140,6 +140,8 @@
 
 
 # app/ai_processor.py
+
+
 import base64
 import json
 
@@ -150,6 +152,11 @@ from pydantic import ValidationError
 
 from .config import settings
 from .pydantic_schemas import ExtractedDataWithConfidence
+from openai import OpenAI
+
+
+# --- Initialize OpenAI Client ---
+openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
 # --- The Master Prompt (remains the same) ---
 MASTER_PROMPT = """
@@ -215,61 +222,145 @@ def convert_pdf_to_base64_images(file_content: bytes) -> list[str]:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to process PDF: {e}",
         )
-
-
-async def extract_data_from_bill(file_content: bytes) -> ExtractedDataWithConfidence:
-    """
-    Orchestrates file conversion and AI data extraction using the Gemini 2.5 Pro model.
-    """
-    # file_content = await file.read()
-    base64_images = convert_pdf_to_base64_images(file_content)
-
-    # --- NEW: Gemini API Call ---
+    
+# --- Helper function for the Gemini API call ---
+async def _call_gemini_api(base64_images: list[str]) -> dict:
+    """Makes an API call to the Gemini 2.5 Pro model."""
+    print("Attempting extraction with Gemini 2.5 Pro...")
+    
+    # --- CHANGE: Updated model name to gemini-2.5-pro ---
     GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key={settings.GEMINI_API_KEY}"
-
-    # Construct the parts of the request: one text part and multiple image parts
+    
     request_parts = [{"text": MASTER_PROMPT}]
     for image_data in base64_images:
-        request_parts.append(
-            {"inline_data": {"mime_type": "image/jpeg", "data": image_data}}
-        )
+        request_parts.append({"inline_data": {"mime_type": "image/jpeg", "data": image_data}})
 
-    # Construct the final payload
     payload = {
         "contents": [{"parts": request_parts}],
         "generationConfig": {"response_mime_type": "application/json"},
     }
+    
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        response = await client.post(GEMINI_API_URL, json=payload)
+        response.raise_for_status()
 
-    try:
-        # Use an async HTTP client to make the API call
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            response = await client.post(GEMINI_API_URL, json=payload)
-            response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
+    result = response.json()
+    ai_response_str = result["candidates"][0]["content"]["parts"][0]["text"]
+    return json.loads(ai_response_str)
 
-        # Extract the JSON string from the Gemini response
-        result = response.json()
-        ai_response_str = result["candidates"][0]["content"]["parts"][0]["text"]
-        ai_response_json = json.loads(ai_response_str)
+# --- Helper function for the OpenAI (GPT) API call ---
+async def _call_openai_api(base64_images: list[str]) -> dict:
+    """Makes an API call to the GPT-5 model as a fallback."""
+    print("Gemini failed. Attempting fallback extraction with GPT-5...")
+    
+    messages = [{"role": "user", "content": [{"type": "text", "text": MASTER_PROMPT}]}]
+    for image_data in base64_images:
+        messages[0]["content"].append({
+            "type": "image_url",
+            "image_url": {"url": f"data:image/jpeg;base64,{image_data}"}
+        })
 
-        # Validate the AI's response against our Pydantic schema
-        validated_data = ExtractedDataWithConfidence(**ai_response_json)
+    response = openai_client.chat.completions.create(
+        # --- CHANGE: Updated model name to gpt-5 ---
+        model="gpt-5",
+        messages=messages,
+        response_format={"type": "json_object"},
+    )
+    
+    ai_response_str = response.choices[0].message.content
+    return json.loads(ai_response_str)
 
-        return validated_data
 
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(
-            status_code=e.response.status_code,
-            detail=f"Error from Gemini API: {e.response.text}",
-        )
-    except (json.JSONDecodeError, KeyError):
-        raise HTTPException(
-            status_code=500, detail="AI returned a malformed or unexpected response."
-        )
-    except ValidationError as e:
-        raise HTTPException(
-            status_code=500, detail=f"AI response failed validation: {e}"
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"An unexpected error occurred: {e}"
-        )
+
+
+
+
+# async def extract_data_from_bill(file_content: bytes) -> ExtractedDataWithConfidence:
+#     """
+#     Orchestrates file conversion and AI data extraction using the Gemini 2.5 Pro model.
+#     """
+#     # file_content = await file.read()
+#     base64_images = convert_pdf_to_base64_images(file_content)
+
+#     # --- NEW: Gemini API Call ---
+#     GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key={settings.GEMINI_API_KEY}"
+
+#     # Construct the parts of the request: one text part and multiple image parts
+#     request_parts = [{"text": MASTER_PROMPT}]
+#     for image_data in base64_images:
+#         request_parts.append(
+#             {"inline_data": {"mime_type": "image/jpeg", "data": image_data}}
+#         )
+
+#     # Construct the final payload
+#     payload = {
+#         "contents": [{"parts": request_parts}],
+#         "generationConfig": {"response_mime_type": "application/json"},
+#     }
+
+#     try:
+#         # Use an async HTTP client to make the API call
+#         async with httpx.AsyncClient(timeout=120.0) as client:
+#             response = await client.post(GEMINI_API_URL, json=payload)
+#             response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
+
+#         # Extract the JSON string from the Gemini response
+#         result = response.json()
+#         ai_response_str = result["candidates"][0]["content"]["parts"][0]["text"]
+#         ai_response_json = json.loads(ai_response_str)
+
+#         # Validate the AI's response against our Pydantic schema
+#         validated_data = ExtractedDataWithConfidence(**ai_response_json)
+
+#         return validated_data
+
+#     except httpx.HTTPStatusError as e:
+#         raise HTTPException(
+#             status_code=e.response.status_code,
+#             detail=f"Error from Gemini API: {e.response.text}",
+#         )
+#     except (json.JSONDecodeError, KeyError):
+#         raise HTTPException(
+#             status_code=500, detail="AI returned a malformed or unexpected response."
+#         )
+#     except ValidationError as e:
+#         raise HTTPException(
+#             status_code=500, detail=f"AI response failed validation: {e}"
+#         )
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=500, detail=f"An unexpected error occurred: {e}"
+#         )
+
+
+
+# --- Main function with fallback logic ---
+async def extract_data_from_bill(file_content: bytes) -> ExtractedDataWithConfidence:
+    """
+    Orchestrates data extraction with a fallback mechanism.
+    Tries Gemini 2.5 Pro first, then falls back to GPT-5 if it fails.
+    """
+    base64_images = convert_pdf_to_base64_images(file_content)
+    
+    providers = [
+        {"name": "Gemini 2.5 Pro", "func": _call_gemini_api},
+        {"name": "GPT-5", "func": _call_openai_api},
+    ]
+    
+    last_error = None
+    
+    for provider in providers:
+        try:
+            ai_response_json = await provider["func"](base64_images)
+            validated_data = ExtractedDataWithConfidence(**ai_response_json)
+            print(f"✅ Successfully extracted data using {provider['name']}.")
+            return validated_data
+        except Exception as e:
+            print(f"❌ Provider '{provider['name']}' failed. Error: {e}")
+            last_error = e
+            continue
+
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail=f"All AI providers failed to process the request. Last error: {last_error}",
+    )
