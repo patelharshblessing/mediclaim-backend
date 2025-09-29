@@ -532,7 +532,7 @@ else:
                     )
 
         with cols[len(header_keys) % 3]:
-            policy_number = st.text_input("Policy Number", value="POL-98765-ABC")
+            policy_number = st.text_input("Policy Number", value="MVP1")
         with cols[(len(header_keys) + 1) % 3]:
             insurance_provider = st.text_input(
                 "Insurance Provider", value="SecureHealth Insurance Ltd."

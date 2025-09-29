@@ -25,7 +25,7 @@ __pycache__/
 .streamlit_cache/
 
 # Local data files like the vector database
-app/data/
+# app/data/
 
 
 # --- IDE / Editor Configuration ---
@@ -38,3 +38,11 @@ app/data/
 *.png
 *.jpg
 *.sql
+*.log 
+
+*.joblib
+*.csv
+*.csv#
+*.gz
+app/data/
+catboost_info/
