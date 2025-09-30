@@ -139,8 +139,6 @@
 #         )
 
 
-
-
 # app/ai_processor.py
 import base64
 import json
@@ -275,3 +273,58 @@ async def extract_data_from_bill(file_content: bytes) -> ExtractedDataWithConfid
         raise HTTPException(
             status_code=500, detail=f"An unexpected error occurred: {e}"
         )
+
+
+# ...existing code...
+import os
+import json
+import httpx
+from typing import List, Dict, Any
+from datetime import datetime
+
+from .pydantic_schemas import ExtractedDataWithConfidence
+from .config import settings
+from langchain_google_genai import ChatGoogleGenerativeAI
+
+
+async def llm_merge_extractions(per_page_results):
+    """
+    Use the LLM (Gemini) to merge per-page ExtractedDataWithConfidence JSONs into a single
+    ExtractedDataWithConfidence following the schema. Raises HTTPException on failure.
+    """
+    if not per_page_results:
+        raise HTTPException(
+            status_code=400, detail="No per-page results provided for merge."
+        )
+
+    # build merge prompt
+    merge_instructions = """
+You are an expert data consolidator. You will be given multiple JSON objects (each follows the ExtractedDataWithConfidence schema).
+Your job: produce a single JSON that follows the same schema. Rules:
+- For scalar fields pick the value with highest confidence (if tie, prefer non-null).
+- For lists (line_items) combine all items, deduplicate if identical description+amount, and provide confidence per field.
+- Preserve confidence scores and ensure final JSON validates against the schema.
+- Do NOT include any extra fields.
+Return ONLY the final JSON object.
+"""
+
+    # prepare content: include all page JSONs
+    payload_text = merge_instructions + "\n\nPer-page JSONs:\n"
+    for i, p in enumerate(per_page_results):
+        payload_text += f"\n--PAGE {i}--\n{json.dumps(p)}\n"
+
+    # Prefer LangChain's structured output if available (returns parsed Pydantic model)
+    try:
+        llm = ChatGoogleGenerativeAI(
+            model="gemini-2.5-flash",
+            google_api_key=settings.GEMINI_API_KEY,
+            convert_system_message_to_human=True,
+        )
+
+        structured = llm.with_structured_output(ExtractedDataWithConfidence)
+        output = await structured.ainvoke(payload_text)  # async call
+
+        return output
+    except ImportError:
+        # LangChain not installed; fallback to direct HTTP call
+        pass

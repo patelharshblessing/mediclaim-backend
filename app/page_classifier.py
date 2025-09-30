@@ -39,7 +39,9 @@ class PageClassifier:
             print("✅ Page Classifier initialized successfully.")
         except FileNotFoundError as e:
             print(f"❌ CRITICAL ERROR: Could not find a model file: {e}")
-            print("Please make sure the trained model files exist in the root directory.")
+            print(
+                "Please make sure the trained model files exist in the root directory."
+            )
             raise
 
     def _extract_text_with_ocr(self, image_bytes: bytes) -> str:
@@ -91,7 +93,7 @@ class PageClassifier:
             extracted_texts = await asyncio.gather(*tasks)
 
         print("Text extraction complete. Creating vector embeddings...")
-        
+
         # Filter out pages where OCR might have failed
         valid_texts = [text for text in extracted_texts if text]
         if not valid_texts:
@@ -103,15 +105,18 @@ class PageClassifier:
 
         print("Predicting labels with the custom XGBoost model...")
         predictions_encoded = self.classifier.predict(vectors)
-        
+
         # Convert numerical predictions (0, 1) back to labels ('irrelevant', 'relevant')
         predicted_labels = self.label_encoder.inverse_transform(predictions_encoded)
-        
+
         # Create the final boolean list
         is_relevant_list = [label == "relevant" for label in predicted_labels]
-        
-        print(f"✅ Classification complete. Found {sum(is_relevant_list)} relevant page(s).")
+
+        print(
+            f"✅ Classification complete. Found {sum(is_relevant_list)} relevant page(s)."
+        )
         return is_relevant_list
+
 
 # # --- Example Usage (How to test this file) ---
 # async def main_test():
@@ -119,7 +124,7 @@ class PageClassifier:
 #     # Replace this with a path to a multi-page PDF for testing
 #     # test_pdf_path = "/home/harsh/mediclaim_backend/dataset/original_bills/6437344-Medical-Billing-Simple-Manual.pdf"
 #     test_pdf_path = "/home/harsh/mediclaim_backend/dataset/original_bills/claim_document/bill10.pdf"
-    
+
 #     if not os.path.exists(test_pdf_path):
 #         print(f"Test file not found at: {test_pdf_path}")
 #         return
@@ -129,7 +134,7 @@ class PageClassifier:
 
 #     classifier = PageClassifier()
 #     results = await classifier.classify_pages(pdf_bytes)
-    
+
 #     print("\n--- Classification Results ---")
 #     for i, result in enumerate(results):
 #         print(f"Page {i+1}: {'Relevant' if result else 'Irrelevant'}")

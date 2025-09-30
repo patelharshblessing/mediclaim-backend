@@ -30,9 +30,11 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/token")
 # def get_password_hash(password):
 #     return pwd_context.hash(password)
 
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     # Truncate the password to 72 bytes before verifying
     return pwd_context.verify(plain_password[:72], hashed_password)
+
 
 def get_password_hash(password: str) -> str:
     # Truncate the password to 72 bytes before hashing
