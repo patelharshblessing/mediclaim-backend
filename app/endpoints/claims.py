@@ -25,6 +25,7 @@ from ..value_extractor import extract_data_from_bill
 from ..page_classifier import PageClassifier  # Import classify_pages function
 from PyPDF2 import PdfReader, PdfWriter  # For handling PDF pages
 import io  # For in-memory file handling
+from ..normalization_service import NormalizationService
 
 # import db
 db = get_db()
@@ -81,6 +82,8 @@ async def create_extraction_request(
     return extracted_data
 
 
+normalizationservice = NormalizationService()
+
 @claims_router.post("/adjudicate", response_model=AdjudicatedClaim)
 @limiter.limit("10/minute")
 async def create_adjudication_request(
@@ -94,7 +97,7 @@ async def create_adjudication_request(
     Receives structured bill data and applies the adjudication rules engine.
     This is the second step in the workflow.
     """
-    adjudicated_result = await adjudicate_claim(extracted_data, insurance_details)
+    adjudicated_result = await adjudicate_claim(extracted_data, insurance_details,normalizationservice=normalizationservice)
     print("saving the adjudicated claim to the database")
     db_claim = crud.create_claim_record(
         db=db,

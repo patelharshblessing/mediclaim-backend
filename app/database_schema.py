@@ -1,4 +1,4 @@
-# app/models.py
+# app/database_schema.py
 import uuid
 
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, func

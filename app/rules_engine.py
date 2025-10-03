@@ -1,5 +1,4 @@
 # app/rules_engine.py
-# app/rules_engine.py
 import os
 import sys
 
@@ -27,9 +26,11 @@ from app.rules_utils import (
     run_final_sanity_check,
 )
 
+from app.normalization_service import NormalizationService
+
 
 async def adjudicate_claim(
-    extracted_data: ExtractedData, insurance_details: InsuranceDetails
+    extracted_data: ExtractedData, insurance_details: InsuranceDetails, normalizationservice:NormalizationService
 ) -> Tuple[AdjudicatedClaim, dict]:
     """
     The main orchestrator for the adjudication pipeline. It applies a series
@@ -80,7 +81,7 @@ async def adjudicate_claim(
 
     # --- Step 1: Find and update IRDAI non-payable items ---
 
-    normalizationservice = NormalizationService()
+    normalizationservice = normalizationservice
     non_payable_list = identify_non_payable_items(
         line_items=adjudicated_claim.adjudicated_line_items,
         service=normalizationservice,
@@ -97,7 +98,7 @@ async def adjudicate_claim(
             item.allowed_amount = 0.0
             item.disallowed_amount = item.total_amount
             item.reason = "Non-payable item as per IRDAI guidelines."
-    items = ",".join(non_payable_descriptions)
+            items = ",".join(non_payable_descriptions)
     if total_disallowed_IRDAI > 0.0:
         adjudicated_claim.adjustments_log.append(
             f"The items {items}  not allowed because they are categorised as Non-Payable by IRDAI constituting to: ₹{total_disallowed_IRDAI:,.2f}"
@@ -213,3 +214,4 @@ async def adjudicate_claim(
 
     print("--- ✅ Adjudication and Final Audit Complete ---")
     return adjudicated_claim
+

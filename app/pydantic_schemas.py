@@ -1,4 +1,4 @@
-# app/schemas.py
+# app/pydantic_schemas.py
 
 from datetime import date
 from typing import List, Optional, Union
@@ -106,7 +106,7 @@ class SanityCheckResult(BaseModel):
     flags: List[str] = Field(
         default_factory=list,
         description="A list of specific flags for any potential issues "
-        " (e.g., 'High Pharmacy Cost').",
+        " (e.g., 'Calculation Error', 'Logic Inconsistency', 'High Cost Anomaly', 'Missing Information', 'Policy Misinterpretation')."
     )
 
 

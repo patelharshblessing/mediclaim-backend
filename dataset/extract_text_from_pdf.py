@@ -59,14 +59,13 @@ def extract_text_from_pdf_with_ocr(pdf_path: str) -> str:
     return "\n".join(all_text)
 
 # --- Example Usage (How to test this function) ---
-# if __name__ == '__main__':
-#     # Replace this with the path to one of your single-page PDF files
-#     # from the 'labeled_dataset/relevant/' folder to test.
-#     test_pdf_path = '/home/harsh/mediclaim_backend/dataset/output_folder/relevant/205064886-Medical-Bill_page_1.pdf' 
-    
-#     print(f"Extracting text from: {test_pdf_path}")
-#     extracted_content = extract_text_from_pdf_with_ocr(test_pdf_path)
-    
-#     print("\n--- Extracted Content ---")
-#     print(extracted_content)
-#     print("\n-------------------------")
+if __name__ == '__main__':
+    # Replace this with the path to one of your single-page PDF files
+    # from the 'labeled_dataset/relevant/' folder to test.
+    test_pdf_path = '/home/harsh/mediclaim_backend/dataset/false_positive/672652150-Medical-Bill_page_2.pdf' 
+
+    print(f"Extracting text from: {test_pdf_path}")
+    extracted_content = extract_text_from_pdf_with_ocr(test_pdf_path)
+    print("\n--- Extracted Content ---")
+    print(extracted_content)
+    print("\n-------------------------")
