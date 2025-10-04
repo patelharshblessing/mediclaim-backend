@@ -3,6 +3,7 @@
 from fastapi import FastAPI
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
 
 from .config import settings
@@ -14,6 +15,20 @@ app = FastAPI(
     title="Mediclaim Processing API",
     description="API for extracting and adjudicating medical claims.",
     version="1.0.0",
+)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+    ],  # Add your frontend URLs
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(claims_router, prefix="/api/v1/claims", tags=["Claims"])
