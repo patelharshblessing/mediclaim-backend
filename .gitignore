@@ -42,7 +42,6 @@ __pycache__/
 *.jpg
 *.sql
 *.csv#
-*.joblib
 *.db
 *.gz
 *.csv
