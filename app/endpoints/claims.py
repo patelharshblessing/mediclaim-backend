@@ -1,10 +1,12 @@
 # app/endpoint/claims.py
 
+import io  # For in-memory file handling
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
+from PyPDF2 import PdfReader, PdfWriter  # For handling PDF pages
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy.orm import Session
 
@@ -12,6 +14,8 @@ from .. import auth, crud
 from ..config import settings
 from ..database import get_db
 from ..limiter import limiter  # Import the limiter instance
+from ..normalization_service import NormalizationService
+from ..page_classifier import PageClassifier  # Import classify_pages function
 from ..pydantic_schemas import (
     AdjudicatedClaim,
     ExtractedData,
@@ -22,10 +26,6 @@ from ..pydantic_schemas import (
 )
 from ..rules_engine import adjudicate_claim
 from ..value_extractor import extract_data_from_bill
-from ..page_classifier import PageClassifier  # Import classify_pages function
-from PyPDF2 import PdfReader, PdfWriter  # For handling PDF pages
-import io  # For in-memory file handling
-from ..normalization_service import NormalizationService
 
 # import db
 db = get_db()
@@ -52,38 +52,41 @@ async def create_extraction_request(
 
     # Read the uploaded PDF file
     file_content = await file.read()
-    
-    pdf_reader = PdfReader(io.BytesIO(file_content))
-    page_classifier = PageClassifier()
-    # Classify pages to find relevant ones
-    relevant_pages_bool = await page_classifier.classify_pages(file_content)
-    print(f"Relevant pages identified: {relevant_pages_bool}")
 
-    # Convert boolean list to page indices
-    relevant_pages = [i for i, is_relevant in enumerate(relevant_pages_bool) if is_relevant]
-    print(f"Relevant page indices: {relevant_pages}")
-    # Create a new PDF with only the relevant pages
-    relevant_pdf_writer = PdfWriter()
-    for page_num in relevant_pages:
-        relevant_pdf_writer.add_page(pdf_reader.pages[page_num])
+    # pdf_reader = PdfReader(io.BytesIO(file_content))
+    # page_classifier = PageClassifier()
+    # # Classify pages to find relevant ones
+    # relevant_pages_bool = await page_classifier.classify_pages(file_content)
+    # print(f"Relevant pages identified: {relevant_pages_bool}")
 
-    # Write the relevant pages to an in-memory file
-    relevant_pdf_stream = io.BytesIO()
-    relevant_pdf_writer.write(relevant_pdf_stream)
-    relevant_pdf_stream.seek(0)
-    # Save the relevant pages as a PDF file for cross-checking
-    with open("relevant_pages.pdf", "wb") as f:
-        f.write(relevant_pdf_stream.getvalue())
-    print("Relevant pages saved as 'relevant_pages.pdf'")
+    # # Convert boolean list to page indices
+    # relevant_pages = [
+    #     i for i, is_relevant in enumerate(relevant_pages_bool) if is_relevant
+    # ]
+    # print(f"Relevant page indices: {relevant_pages}")
+    # # Create a new PDF with only the relevant pages
+    # relevant_pdf_writer = PdfWriter()
+    # for page_num in relevant_pages:
+    #     relevant_pdf_writer.add_page(pdf_reader.pages[page_num])
 
-    # Call the core logic from your value_extractor service with the relevant pages
-    extracted_data = await extract_data_from_bill(relevant_pdf_stream.getvalue())
-    # extracted_data = await extract_data_from_bill(file_content)
+    # # Write the relevant pages to an in-memory file
+    # relevant_pdf_stream = io.BytesIO()
+    # relevant_pdf_writer.write(relevant_pdf_stream)
+    # relevant_pdf_stream.seek(0)
+    # # Save the relevant pages as a PDF file for cross-checking
+    # with open("relevant_pages.pdf", "wb") as f:
+    #     f.write(relevant_pdf_stream.getvalue())
+    # print("Relevant pages saved as 'relevant_pages.pdf'")
+
+    # # Call the core logic from your value_extractor service with the relevant pages
+    # extracted_data = await extract_data_from_bill(relevant_pdf_stream.getvalue())
+    extracted_data = await extract_data_from_bill(file_content)
 
     return extracted_data
 
 
 normalizationservice = NormalizationService()
+
 
 @claims_router.post("/adjudicate", response_model=AdjudicatedClaim)
 @limiter.limit("10/minute")
@@ -98,7 +101,9 @@ async def create_adjudication_request(
     Receives structured bill data and applies the adjudication rules engine.
     This is the second step in the workflow.
     """
-    adjudicated_result = await adjudicate_claim(extracted_data, insurance_details,normalizationservice=normalizationservice)
+    adjudicated_result = await adjudicate_claim(
+        extracted_data, insurance_details, normalizationservice=normalizationservice
+    )
     print("saving the adjudicated claim to the database")
     db_claim = crud.create_claim_record(
         db=db,

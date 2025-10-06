@@ -17,8 +17,8 @@ from .pydantic_schemas import ExtractedDataWithConfidence
 
 # --- Optional semantic similarity support (uses same model as normalization_service) ---
 try:
-    from sentence_transformers import SentenceTransformer
     import numpy as np
+    from sentence_transformers import SentenceTransformer
 
     _EMBED_MODEL_NAME = "all-MiniLM-L6-v2"
     _embed_model: Optional[SentenceTransformer] = None
@@ -37,6 +37,7 @@ try:
         # Safe cosine
         denom = max(1e-12, float(np.linalg.norm(va) * np.linalg.norm(vb)))
         return float(np.dot(va, vb) / denom)
+
 except Exception:
     # If embeddings are not available, we still work with exact/fuzzy.
     _embed_model = None
@@ -172,7 +173,9 @@ def _choose_value_and_conf(
     return (g_value, gc) if gc > oc else (o_value, oc)
 
 
-def _both_conf_over_90(conf_list_a: List[Optional[float]], conf_list_b: List[Optional[float]]) -> bool:
+def _both_conf_over_90(
+    conf_list_a: List[Optional[float]], conf_list_b: List[Optional[float]]
+) -> bool:
     """True if for each paired confidence both sides are > 0.9."""
     for ca, cb in zip(conf_list_a, conf_list_b):
         if (ca is None or ca < 0.7) or (cb is None or cb < 0.7):
@@ -341,6 +344,7 @@ def _merge_headers(g: Dict[str, Any], o: Dict[str, Any]) -> Dict[str, Dict[str, 
 
 def _force_item_confidence(item: Dict[str, Any], conf: float) -> Dict[str, Any]:
     """Set all four field confidences to `conf` and return a shallow copy."""
+
     def _field(v):  # keep value, force conf
         return {"value": v.get("value"), "confidence": float(conf)}
 
@@ -382,7 +386,9 @@ def _greedy_match_pairs(
     return pairs
 
 
-def _merge_line_items(g_items: List[Dict[str, Any]], o_items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _merge_line_items(
+    g_items: List[Dict[str, Any]], o_items: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
     """
     Build final line items per rules:
       - Match by description only (hybrid).
@@ -522,7 +528,7 @@ async def extract_data_from_bill(file_content: bytes) -> ExtractedDataWithConfid
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail=f"Gemini provider failed: {e}",
             )
-    
+
     if has_openai_key and not has_gemini_key:
         try:
             ai_json = await _call_openai_api(base64_images)
@@ -539,7 +545,9 @@ async def extract_data_from_bill(file_content: bytes) -> ExtractedDataWithConfid
     g_err: Optional[Exception] = None
     o_err: Optional[Exception] = None
 
-    async with httpx.AsyncClient():  # dummy to emphasize async context; provider funcs manage their own clients
+    async with (
+        httpx.AsyncClient()
+    ):  # dummy to emphasize async context; provider funcs manage their own clients
         results = await asyncio_gather_safe(
             _call_gemini_api(base64_images),
             _call_openai_api(base64_images),
@@ -563,13 +571,17 @@ async def extract_data_from_bill(file_content: bytes) -> ExtractedDataWithConfid
         try:
             return ExtractedDataWithConfidence(**g_json)
         except ValidationError as e:
-            raise HTTPException(status_code=500, detail=f"Gemini response failed validation: {e}")
+            raise HTTPException(
+                status_code=500, detail=f"Gemini response failed validation: {e}"
+            )
 
     if o_json is not None and g_json is None:
         try:
             return ExtractedDataWithConfidence(**o_json)
         except ValidationError as e:
-            raise HTTPException(status_code=500, detail=f"OpenAI response failed validation: {e}")
+            raise HTTPException(
+                status_code=500, detail=f"OpenAI response failed validation: {e}"
+            )
 
     # If both failed
     if g_json is None and o_json is None:
@@ -581,7 +593,9 @@ async def extract_data_from_bill(file_content: bytes) -> ExtractedDataWithConfid
     # Both succeeded → fuse
     try:
         # First validate each independently to ensure structure is correct
-        g_valid = ExtractedDataWithConfidence(**g_json)  # noqa: F841 (not used directly beyond validation)
+        g_valid = ExtractedDataWithConfidence(
+            **g_json
+        )  # noqa: F841 (not used directly beyond validation)
         o_valid = ExtractedDataWithConfidence(**o_json)  # noqa: F841
         print("✅ Both Gemini and OpenAI responses validated successfully.")
         print(g_valid)
@@ -593,7 +607,9 @@ async def extract_data_from_bill(file_content: bytes) -> ExtractedDataWithConfid
         print("✅ Successfully fused Gemini and GPT results.")
         return final_valid
     except ValidationError as e:
-        raise HTTPException(status_code=500, detail=f"Fused response failed validation: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Fused response failed validation: {e}"
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Fusion error: {e}")
 
@@ -603,11 +619,14 @@ import asyncio
 from typing import Awaitable
 
 
-async def asyncio_gather_safe(*aws: Awaitable[Any]) -> List[Tuple[Any, Optional[BaseException]]]:
+async def asyncio_gather_safe(
+    *aws: Awaitable[Any],
+) -> List[Tuple[Any, Optional[BaseException]]]:
     """
     Runs awaitables concurrently, returns list of (result, exception) for each.
     If an awaitable raises, its (None, exc) is returned instead of propagating.
     """
+
     async def wrap(coro: Awaitable[Any]):
         try:
             res = await coro
@@ -616,5 +635,3 @@ async def asyncio_gather_safe(*aws: Awaitable[Any]) -> List[Tuple[Any, Optional[
             return (None, exc)
 
     return await asyncio.gather(*[wrap(a) for a in aws])
-
-
