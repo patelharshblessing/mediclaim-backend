@@ -53,34 +53,34 @@ async def create_extraction_request(
     # Read the uploaded PDF file
     file_content = await file.read()
 
-    # pdf_reader = PdfReader(io.BytesIO(file_content))
-    # page_classifier = PageClassifier()
-    # # Classify pages to find relevant ones
-    # relevant_pages_bool = await page_classifier.classify_pages(file_content)
-    # print(f"Relevant pages identified: {relevant_pages_bool}")
+    pdf_reader = PdfReader(io.BytesIO(file_content))
+    page_classifier = PageClassifier()
+    # Classify pages to find relevant ones
+    relevant_pages_bool = await page_classifier.classify_pages(file_content)
+    print(f"Relevant pages identified: {relevant_pages_bool}")
 
-    # # Convert boolean list to page indices
-    # relevant_pages = [
-    #     i for i, is_relevant in enumerate(relevant_pages_bool) if is_relevant
-    # ]
-    # print(f"Relevant page indices: {relevant_pages}")
-    # # Create a new PDF with only the relevant pages
-    # relevant_pdf_writer = PdfWriter()
-    # for page_num in relevant_pages:
-    #     relevant_pdf_writer.add_page(pdf_reader.pages[page_num])
+    # Convert boolean list to page indices
+    relevant_pages = [
+        i for i, is_relevant in enumerate(relevant_pages_bool) if is_relevant
+    ]
+    print(f"Relevant page indices: {relevant_pages}")
+    # Create a new PDF with only the relevant pages
+    relevant_pdf_writer = PdfWriter()
+    for page_num in relevant_pages:
+        relevant_pdf_writer.add_page(pdf_reader.pages[page_num])
 
-    # # Write the relevant pages to an in-memory file
-    # relevant_pdf_stream = io.BytesIO()
-    # relevant_pdf_writer.write(relevant_pdf_stream)
-    # relevant_pdf_stream.seek(0)
-    # # Save the relevant pages as a PDF file for cross-checking
-    # with open("relevant_pages.pdf", "wb") as f:
-    #     f.write(relevant_pdf_stream.getvalue())
-    # print("Relevant pages saved as 'relevant_pages.pdf'")
+    # Write the relevant pages to an in-memory file
+    relevant_pdf_stream = io.BytesIO()
+    relevant_pdf_writer.write(relevant_pdf_stream)
+    relevant_pdf_stream.seek(0)
+    # Save the relevant pages as a PDF file for cross-checking
+    with open("relevant_pages.pdf", "wb") as f:
+        f.write(relevant_pdf_stream.getvalue())
+    print("Relevant pages saved as 'relevant_pages.pdf'")
 
-    # # Call the core logic from your value_extractor service with the relevant pages
-    # extracted_data = await extract_data_from_bill(relevant_pdf_stream.getvalue())
-    extracted_data = await extract_data_from_bill(file_content)
+    # Call the core logic from your value_extractor service with the relevant pages
+    extracted_data = await extract_data_from_bill(relevant_pdf_stream.getvalue())
+    # extracted_data = await extract_data_from_bill(file_content)
 
     return extracted_data
 
