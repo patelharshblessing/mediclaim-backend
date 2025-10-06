@@ -106,7 +106,7 @@ class SanityCheckResult(BaseModel):
     flags: List[str] = Field(
         default_factory=list,
         description="A list of specific flags for any potential issues "
-        " (e.g., 'Calculation Error', 'Logic Inconsistency', 'High Cost Anomaly', 'Missing Information', 'Policy Misinterpretation')."
+        " (e.g., 'Calculation Error', 'Logic Inconsistency', 'High Cost Anomaly', 'Missing Information', 'Policy Misinterpretation').",
     )
 
 
@@ -302,5 +302,3 @@ class Policy(BaseModel):
 
     class Config:
         from_attributes = True  # Allows creating Pydantic model from ORM model
-
-

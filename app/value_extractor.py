@@ -1,9 +1,13 @@
 # app/value_extractor.py
 import base64
+import io
 import json
+import math
+from datetime import date
+from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
-from fastapi import HTTPException, UploadFile, status
+from fastapi import HTTPException, status
 from openai import OpenAI
 from pdf2image import convert_from_bytes
 from pydantic import ValidationError
@@ -11,10 +15,42 @@ from pydantic import ValidationError
 from .config import settings
 from .pydantic_schemas import ExtractedDataWithConfidence
 
-# --- Initialize OpenAI Client ---
-openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+# --- Optional semantic similarity support (uses same model as normalization_service) ---
+try:
+    from sentence_transformers import SentenceTransformer
+    import numpy as np
 
-# --- The Master Prompt (remains the same) ---
+    _EMBED_MODEL_NAME = "all-MiniLM-L6-v2"
+    _embed_model: Optional[SentenceTransformer] = None
+
+    def _get_embed_model() -> SentenceTransformer:
+        global _embed_model
+        if _embed_model is None:
+            _embed_model = SentenceTransformer(_EMBED_MODEL_NAME)
+        return _embed_model
+
+    def _embed_similarity(a: str, b: str) -> float:
+        """Cosine similarity between two strings using SBERT."""
+        model = _get_embed_model()
+        vecs = model.encode([a, b], convert_to_numpy=True)
+        va, vb = vecs[0], vecs[1]
+        # Safe cosine
+        denom = max(1e-12, float(np.linalg.norm(va) * np.linalg.norm(vb)))
+        return float(np.dot(va, vb) / denom)
+except Exception:
+    # If embeddings are not available, we still work with exact/fuzzy.
+    _embed_model = None
+
+    def _embed_similarity(a: str, b: str) -> float:
+        return 0.0
+
+
+# --- Initialize OpenAI Client (only if key is provided) ---
+openai_client: Optional[OpenAI] = None
+if getattr(settings, "OPENAI_API_KEY", None):
+    openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+
+# --- Master Prompt (unchanged) ---
 MASTER_PROMPT = """
 Your task is to act as an expert data extraction agent for Indian medical bills.
 Analyze the provided image(s) of a hospital bill and respond ONLY with a valid JSON object
@@ -27,7 +63,15 @@ Use this scale for the `confidence` score:
 - 0.7: The text is difficult to read or ambiguous. This is your best interpretation.
 - 0.5: The text is extremely blurry or obscured. This is a best-effort guess.
 
-If a field is not present on the bill, the `value` should be `null`.
+CRITICAL: DO NOT GUESS OR INFER MISSING VALUES.
+If a field or any numeric value is NOT PRESENT on the bill, set `"value": null`
+and set `"confidence"` to reflect your confidence that it is truly absent:
+- If you are confident the field is not present on the page(s), set confidence > 0.9
+- If you are not sure whether it is absent, set a lower confidence (< 0.9)
+
+Do NOT fabricate quantities, unit prices, dates, IDs, or totals.
+Do NOT fill values from context if they are not explicitly present.
+Use null for any such values and set the absence confidence.
 
 **CRITICAL INSTRUCTIONS FOR DIFFICULT TEXT:**
 1.  It is **mandatory** to attempt extraction for every visible line item, even if parts of it are faded, blurry, or covered by a stamp.
@@ -57,7 +101,10 @@ JSON Output Structure:
 """
 
 
-def convert_pdf_to_base64_images(file_content: bytes) -> list[str]:
+# ---------------------------
+# Helpers
+# ---------------------------
+def convert_pdf_to_base64_images(file_content: bytes) -> List[str]:
     """Converts all pages of a PDF to Base64 encoded JPEG images."""
     try:
         images = convert_from_bytes(file_content, fmt="jpeg")
@@ -66,8 +113,6 @@ def convert_pdf_to_base64_images(file_content: bytes) -> list[str]:
 
         base64_images = []
         for image in images:
-            import io
-
             buffered = io.BytesIO()
             image.save(buffered, format="JPEG")
             base64_images.append(base64.b64encode(buffered.getvalue()).decode("utf-8"))
@@ -80,13 +125,104 @@ def convert_pdf_to_base64_images(file_content: bytes) -> list[str]:
         )
 
 
-# --- Helper function for the Gemini API call ---
-async def _call_gemini_api(base64_images: list[str]) -> dict:
+def _normalize_text(s: Optional[str]) -> str:
+    if s is None:
+        return ""
+    out = s.strip().lower()
+    # collapse whitespace
+    out = " ".join(out.split())
+    # strip simple punctuation
+    for ch in ",;:()[]{}|/\\\"'`~!@#$%^&*+=<>.?":
+        out = out.replace(ch, " ")
+    out = " ".join(out.split())
+    return out
+
+
+def _fuzzy_ratio(a: str, b: str) -> float:
+    # Lightweight fuzz ratio using difflib (0..1), token-set-ish via unique tokens
+    import difflib
+
+    ta = " ".join(sorted(set(_normalize_text(a).split())))
+    tb = " ".join(sorted(set(_normalize_text(b).split())))
+    return difflib.SequenceMatcher(None, ta, tb).ratio()
+
+
+def _round_half_away_from_zero(x: Optional[float]) -> Optional[int]:
+    if x is None:
+        return None
+    # half away from zero
+    if x >= 0:
+        return int(math.floor(x + 0.5))
+    else:
+        return int(math.ceil(x - 0.5))
+
+
+def _choose_value_and_conf(
+    g_value: Any,
+    g_conf: Optional[float],
+    o_value: Any,
+    o_conf: Optional[float],
+    prefer_gemini_on_tie: bool = True,
+) -> Tuple[Any, float]:
+    """Pick the value from the provider with higher confidence; if tie, prefer Gemini. Return (value, chosen_conf)."""
+    gc = g_conf if g_conf is not None else 0.0
+    oc = o_conf if o_conf is not None else 0.0
+    if abs(gc - oc) < 1e-9:
+        return (g_value if prefer_gemini_on_tie else o_value, gc)
+    return (g_value, gc) if gc > oc else (o_value, oc)
+
+
+def _both_conf_over_90(conf_list_a: List[Optional[float]], conf_list_b: List[Optional[float]]) -> bool:
+    """True if for each paired confidence both sides are > 0.9."""
+    for ca, cb in zip(conf_list_a, conf_list_b):
+        if (ca is None or ca < 0.7) or (cb is None or cb < 0.7):
+            return False
+    return True
+
+
+def _desc_match_score(desc_a: str, desc_b: str) -> float:
+    """Hybrid: exact -> 1.0; else max(fuzzy, embed) with thresholds applied separately later."""
+    na, nb = _normalize_text(desc_a), _normalize_text(desc_b)
+    if na and na == nb:
+        return 1.0
+    fz = _fuzzy_ratio(na, nb)  # 0..1
+    emb = _embed_similarity(na, nb) if _embed_model is not None else 0.0
+    return max(fz, emb)
+
+
+def _descriptions_match(desc_a: str, desc_b: str) -> Tuple[bool, float]:
+    """
+    Decide if two descriptions match by hybrid logic:
+    - exact match -> True
+    - else token-set fuzzy >= 0.90 -> True
+    - else embedding cosine >= 0.80 (if available) -> True
+    Returns (matched, score)
+    """
+    na, nb = _normalize_text(desc_a), _normalize_text(desc_b)
+    if na and na == nb:
+        return True, 1.0
+    fz = _fuzzy_ratio(na, nb)
+    if fz >= 0.90:
+        return True, fz
+    emb = _embed_similarity(na, nb) if _embed_model is not None else 0.0
+    if emb >= 0.80:
+        return True, emb
+    return False, max(fz, emb)
+
+
+# ---------------------------
+# Provider Calls
+# ---------------------------
+async def _call_gemini_api(base64_images: List[str]) -> Dict[str, Any]:
     """Makes an API call to the Gemini 2.5 Pro model."""
+    if not getattr(settings, "GEMINI_API_KEY", None):
+        raise RuntimeError("GEMINI_API_KEY not configured.")
     print("Attempting extraction with Gemini 2.5 Pro...")
 
-    # --- CHANGE: Updated model name to gemini-2.5-pro ---
-    GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key={settings.GEMINI_API_KEY}"
+    GEMINI_API_URL = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent"
+        f"?key={settings.GEMINI_API_KEY}"
+    )
 
     request_parts = [{"text": MASTER_PROMPT}]
     for image_data in base64_images:
@@ -108,10 +244,11 @@ async def _call_gemini_api(base64_images: list[str]) -> dict:
     return json.loads(ai_response_str)
 
 
-# --- Helper function for the OpenAI (GPT) API call ---
-async def _call_openai_api(base64_images: list[str]) -> dict:
-    """Makes an API call to the GPT-5 model as a fallback."""
-    print("Gemini failed. Attempting fallback extraction with GPT-5...")
+async def _call_openai_api(base64_images: List[str]) -> Dict[str, Any]:
+    """Makes an API call to the GPT-5 model."""
+    if openai_client is None:
+        raise RuntimeError("OPENAI_API_KEY not configured.")
+    print("Attempting extraction with GPT-5...")
 
     messages = [{"role": "user", "content": [{"type": "text", "text": MASTER_PROMPT}]}]
     for image_data in base64_images:
@@ -123,7 +260,6 @@ async def _call_openai_api(base64_images: list[str]) -> dict:
         )
 
     response = openai_client.chat.completions.create(
-        # --- CHANGE: Updated model name to gpt-5 ---
         model="gpt-5",
         messages=messages,
         response_format={"type": "json_object"},
@@ -133,91 +269,352 @@ async def _call_openai_api(base64_images: list[str]) -> dict:
     return json.loads(ai_response_str)
 
 
-# async def extract_data_from_bill(file_content: bytes) -> ExtractedDataWithConfidence:
-#     """
-#     Orchestrates file conversion and AI data extraction using the Gemini 2.5 Pro model.
-#     """
-#     # file_content = await file.read()
-#     base64_images = convert_pdf_to_base64_images(file_content)
-
-#     # --- NEW: Gemini API Call ---
-#     GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key={settings.GEMINI_API_KEY}"
-
-#     # Construct the parts of the request: one text part and multiple image parts
-#     request_parts = [{"text": MASTER_PROMPT}]
-#     for image_data in base64_images:
-#         request_parts.append(
-#             {"inline_data": {"mime_type": "image/jpeg", "data": image_data}}
-#         )
-
-#     # Construct the final payload
-#     payload = {
-#         "contents": [{"parts": request_parts}],
-#         "generationConfig": {"response_mime_type": "application/json"},
-#     }
-
-#     try:
-#         # Use an async HTTP client to make the API call
-#         async with httpx.AsyncClient(timeout=120.0) as client:
-#             response = await client.post(GEMINI_API_URL, json=payload)
-#             response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
-
-#         # Extract the JSON string from the Gemini response
-#         result = response.json()
-#         ai_response_str = result["candidates"][0]["content"]["parts"][0]["text"]
-#         ai_response_json = json.loads(ai_response_str)
-
-#         # Validate the AI's response against our Pydantic schema
-#         validated_data = ExtractedDataWithConfidence(**ai_response_json)
-
-#         return validated_data
-
-#     except httpx.HTTPStatusError as e:
-#         raise HTTPException(
-#             status_code=e.response.status_code,
-#             detail=f"Error from Gemini API: {e.response.text}",
-#         )
-#     except (json.JSONDecodeError, KeyError):
-#         raise HTTPException(
-#             status_code=500, detail="AI returned a malformed or unexpected response."
-#         )
-#     except ValidationError as e:
-#         raise HTTPException(
-#             status_code=500, detail=f"AI response failed validation: {e}"
-#         )
-#     except Exception as e:
-#         raise HTTPException(
-#             status_code=500, detail=f"An unexpected error occurred: {e}"
-#         )
+# ---------------------------
+# Fusion Logic
+# ---------------------------
+def _extract_header_field(d: Dict[str, Any], key: str) -> Tuple[Any, Optional[float]]:
+    obj = d.get(key, {}) or {}
+    return obj.get("value", None), obj.get("confidence", None)
 
 
-# --- Main function with fallback logic ---
+def _extract_line_items(d: Dict[str, Any]) -> List[Dict[str, Any]]:
+    return d.get("line_items", []) or []
+
+
+def _merge_headers(g: Dict[str, Any], o: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    """
+    Merge non-line-item fields by:
+      - Strings: same description-matching logic
+      - Dates: equal if same YYYY-MM-DD
+      - Numbers: equal if round-to-int equal
+      Confidence rule:
+        - if matched and both providers' confidences for the field > 0.9 → 1.0
+        - else 0.5
+      Value picked from higher-confidence provider (tie → Gemini)
+    """
+    out: Dict[str, Dict[str, Any]] = {}
+
+    def set_field(key: str, value: Any, conf: float):
+        out[key] = {"value": value, "confidence": float(conf)}
+
+    # String-like fields
+    for key in ["hospital_name", "patient_name", "bill_no"]:
+        gv, gc = _extract_header_field(g, key)
+        ov, oc = _extract_header_field(o, key)
+
+        if gv is None and ov is None:
+            set_field(key, None, 0.5)
+            continue
+
+        matched, _score = _descriptions_match(str(gv or ""), str(ov or ""))
+        chosen_value, chosen_conf = _choose_value_and_conf(gv, gc, ov, oc)
+        final_conf = 1.0 if (matched and _both_conf_over_90([gc], [oc])) else 0.5
+        set_field(key, chosen_value, final_conf)
+
+    # Date fields: equal iff exact YYYY-MM-DD strings
+    for key in ["bill_date", "admission_date", "discharge_date"]:
+        gv, gc = _extract_header_field(g, key)
+        ov, oc = _extract_header_field(o, key)
+
+        if gv is None and ov is None:
+            set_field(key, None, 0.5)
+            continue
+
+        matched = (gv == ov) and (gv is not None)
+        chosen_value, _ = _choose_value_and_conf(gv, gc, ov, oc)
+        final_conf = 1.0 if (matched and _both_conf_over_90([gc], [oc])) else 0.5
+        set_field(key, chosen_value, final_conf)
+
+    # Numeric field: integer precision compare
+    key = "net_payable_amount"
+    gv, gc = _extract_header_field(g, key)
+    ov, oc = _extract_header_field(o, key)
+    gi = _round_half_away_from_zero(gv if isinstance(gv, (int, float)) else None)
+    oi = _round_half_away_from_zero(ov if isinstance(ov, (int, float)) else None)
+    matched = (gi is not None) and (oi is not None) and (gi == oi)
+    chosen_value, _ = _choose_value_and_conf(gv, gc, ov, oc)
+    final_conf = 1.0 if (matched and _both_conf_over_90([gc], [oc])) else 0.5
+    set_field(key, chosen_value, final_conf)
+
+    return out
+
+
+def _force_item_confidence(item: Dict[str, Any], conf: float) -> Dict[str, Any]:
+    """Set all four field confidences to `conf` and return a shallow copy."""
+    def _field(v):  # keep value, force conf
+        return {"value": v.get("value"), "confidence": float(conf)}
+
+    return {
+        "description": _field(item.get("description", {})),
+        "quantity": _field(item.get("quantity", {})),
+        "unit_price": _field(item.get("unit_price", {})),
+        "total_amount": _field(item.get("total_amount", {})),
+    }
+
+
+def _greedy_match_pairs(
+    g_items: List[Dict[str, Any]], o_items: List[Dict[str, Any]]
+) -> List[Tuple[int, int, float]]:
+    """Return list of (gi, oi, score) pairs using description-only hybrid matching with threshold."""
+    candidates: List[Tuple[int, int, float]] = []
+    for gi, g in enumerate(g_items):
+        gd = (g.get("description") or {}).get("value", "")
+        for oi, o in enumerate(o_items):
+            od = (o.get("description") or {}).get("value", "")
+            matched, score = _descriptions_match(str(gd or ""), str(od or ""))
+            if matched:
+                candidates.append((gi, oi, score))
+    # sort by score desc
+    candidates.sort(key=lambda x: x[2], reverse=True)
+
+    used_g = set()
+    used_o = set()
+    pairs: List[Tuple[int, int, float]] = []
+    # acceptance threshold 0.85 on score
+    for gi, oi, sc in candidates:
+        if sc < 0.85:
+            continue
+        if gi in used_g or oi in used_o:
+            continue
+        used_g.add(gi)
+        used_o.add(oi)
+        pairs.append((gi, oi, sc))
+    return pairs
+
+
+def _merge_line_items(g_items: List[Dict[str, Any]], o_items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Build final line items per rules:
+      - Match by description only (hybrid).
+      - After match, require quantity/unit_price/total_amount to match at integer precision; if any differ:
+          -> include BOTH items separately with all four fields' confidence = 0.5
+      - For accepted pairs (all three numbers match):
+          -> If BOTH providers have >0.9 for ALL FOUR fields => set all conf to 1.0, else 0.5
+          -> Value per field chosen from higher-confidence provider (tie -> Gemini)
+      - Unmatched items from either side are included with all four fields' confidence set to 0.5
+    """
+    final_items: List[Dict[str, Any]] = []
+
+    pairs = _greedy_match_pairs(g_items, o_items)
+    paired_g = set(gi for gi, _, _ in pairs)
+    paired_o = set(oi for _, oi, _ in pairs)
+
+    # Process accepted/ rejected pairs
+    for gi, oi, _sc in pairs:
+        g = g_items[gi]
+        o = o_items[oi]
+
+        # Round ints
+        g_qty = _round_half_away_from_zero((g.get("quantity") or {}).get("value"))
+        o_qty = _round_half_away_from_zero((o.get("quantity") or {}).get("value"))
+        g_up = _round_half_away_from_zero((g.get("unit_price") or {}).get("value"))
+        o_up = _round_half_away_from_zero((o.get("unit_price") or {}).get("value"))
+        g_tot = _round_half_away_from_zero((g.get("total_amount") or {}).get("value"))
+        o_tot = _round_half_away_from_zero((o.get("total_amount") or {}).get("value"))
+
+        # If any numeric mismatch -> include both separately with 0.5 confidence
+        if not (g_qty == o_qty and g_up == o_up and g_tot == o_tot):
+            final_items.append(_force_item_confidence(g, 0.5))
+            final_items.append(_force_item_confidence(o, 0.5))
+            continue
+
+        # Numeric match: build merged item
+        # Collect confidences
+        g_desc_c = (g.get("description") or {}).get("confidence", 0.0)
+        o_desc_c = (o.get("description") or {}).get("confidence", 0.0)
+        g_qty_c = (g.get("quantity") or {}).get("confidence", 0.0)
+        o_qty_c = (o.get("quantity") or {}).get("confidence", 0.0)
+        g_up_c = (g.get("unit_price") or {}).get("confidence", 0.0)
+        o_up_c = (o.get("unit_price") or {}).get("confidence", 0.0)
+        g_tot_c = (g.get("total_amount") or {}).get("confidence", 0.0)
+        o_tot_c = (o.get("total_amount") or {}).get("confidence", 0.0)
+
+        # Decide overall confidence tier
+        all_over_90 = _both_conf_over_90(
+            [g_desc_c, g_qty_c, g_up_c, g_tot_c],
+            [o_desc_c, o_qty_c, o_up_c, o_tot_c],
+        )
+        final_conf = 1.0 if all_over_90 else 0.5
+
+        # Choose values per field from higher-confidence provider
+        g_desc_v = (g.get("description") or {}).get("value")
+        o_desc_v = (o.get("description") or {}).get("value")
+        desc_v, _ = _choose_value_and_conf(g_desc_v, g_desc_c, o_desc_v, o_desc_c)
+
+        g_qty_v = (g.get("quantity") or {}).get("value")
+        o_qty_v = (o.get("quantity") or {}).get("value")
+        qty_v, _ = _choose_value_and_conf(g_qty_v, g_qty_c, o_qty_v, o_qty_c)
+
+        g_up_v = (g.get("unit_price") or {}).get("value")
+        o_up_v = (o.get("unit_price") or {}).get("value")
+        up_v, _ = _choose_value_and_conf(g_up_v, g_up_c, o_up_v, o_up_c)
+
+        g_tot_v = (g.get("total_amount") or {}).get("value")
+        o_tot_v = (o.get("total_amount") or {}).get("value")
+        tot_v, _ = _choose_value_and_conf(g_tot_v, g_tot_c, o_tot_v, o_tot_c)
+
+        final_items.append(
+            {
+                "description": {"value": desc_v, "confidence": final_conf},
+                "quantity": {"value": qty_v, "confidence": final_conf},
+                "unit_price": {"value": up_v, "confidence": final_conf},
+                "total_amount": {"value": tot_v, "confidence": final_conf},
+            }
+        )
+
+    # Unmatched Gemini items
+    for gi, g in enumerate(g_items):
+        if gi not in paired_g:
+            final_items.append(_force_item_confidence(g, 0.5))
+
+    # Unmatched GPT items
+    for oi, o in enumerate(o_items):
+        if oi not in paired_o:
+            final_items.append(_force_item_confidence(o, 0.5))
+
+    return final_items
+
+
+def _build_fused_payload(g: Dict[str, Any], o: Dict[str, Any]) -> Dict[str, Any]:
+    fused: Dict[str, Any] = {}
+
+    # Headers
+    headers = _merge_headers(g, o)
+    fused.update(headers)
+
+    # Line items
+    g_items = _extract_line_items(g)
+    o_items = _extract_line_items(o)
+    fused["line_items"] = _merge_line_items(g_items, o_items)
+
+    return fused
+
+
+# ---------------------------
+# Main Orchestrator
+# ---------------------------
 async def extract_data_from_bill(file_content: bytes) -> ExtractedDataWithConfidence:
     """
-    Orchestrates data extraction with a fallback mechanism.
-    Tries Gemini 2.5 Pro first, then falls back to GPT-5 if it fails.
+    New workflow:
+      - If neither provider available => 503
+      - If only one available => return that provider's result as-is
+      - If both available => call both in parallel, fuse results per the matching & confidence rules,
+        and return the fused ExtractedDataWithConfidence
     """
     base64_images = convert_pdf_to_base64_images(file_content)
 
-    providers = [
-        {"name": "Gemini 2.5 Pro", "func": _call_gemini_api},
-        {"name": "GPT-5", "func": _call_openai_api},
-    ]
+    has_gemini_key = bool(getattr(settings, "GEMINI_API_KEY", None))
+    has_openai_key = bool(getattr(settings, "OPENAI_API_KEY", None))
 
-    last_error = None
+    if not has_gemini_key and not has_openai_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="No AI providers available: both GEMINI_API_KEY and OPENAI_API_KEY are missing.",
+        )
 
-    for provider in providers:
+    # If only one provider is configured, call it and return raw result
+    if has_gemini_key and not has_openai_key:
         try:
-            ai_response_json = await provider["func"](base64_images)
-            validated_data = ExtractedDataWithConfidence(**ai_response_json)
-            print(f"✅ Successfully extracted data using {provider['name']}.")
-            return validated_data
+            ai_json = await _call_gemini_api(base64_images)
+            return ExtractedDataWithConfidence(**ai_json)
         except Exception as e:
-            print(f"❌ Provider '{provider['name']}' failed. Error: {e}")
-            last_error = e
-            continue
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Gemini provider failed: {e}",
+            )
+    
+    if has_openai_key and not has_gemini_key:
+        try:
+            ai_json = await _call_openai_api(base64_images)
+            return ExtractedDataWithConfidence(**ai_json)
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"OpenAI provider failed: {e}",
+            )
 
-    raise HTTPException(
-        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        detail=f"All AI providers failed to process the request. Last error: {last_error}",
-    )
+    # Both providers configured → call in parallel
+    g_json: Optional[Dict[str, Any]] = None
+    o_json: Optional[Dict[str, Any]] = None
+    g_err: Optional[Exception] = None
+    o_err: Optional[Exception] = None
+
+    async with httpx.AsyncClient():  # dummy to emphasize async context; provider funcs manage their own clients
+        results = await asyncio_gather_safe(
+            _call_gemini_api(base64_images),
+            _call_openai_api(base64_images),
+        )
+
+    # Unpack results
+    (g_res, g_exc), (o_res, o_exc) = results
+
+    if g_exc is None:
+        g_json = g_res
+    else:
+        g_err = g_exc
+
+    if o_exc is None:
+        o_json = o_res
+    else:
+        o_err = o_exc
+
+    # If only one succeeded, return it raw (as-is)
+    if g_json is not None and o_json is None:
+        try:
+            return ExtractedDataWithConfidence(**g_json)
+        except ValidationError as e:
+            raise HTTPException(status_code=500, detail=f"Gemini response failed validation: {e}")
+
+    if o_json is not None and g_json is None:
+        try:
+            return ExtractedDataWithConfidence(**o_json)
+        except ValidationError as e:
+            raise HTTPException(status_code=500, detail=f"OpenAI response failed validation: {e}")
+
+    # If both failed
+    if g_json is None and o_json is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Both providers failed. Gemini error: {g_err}; OpenAI error: {o_err}",
+        )
+
+    # Both succeeded → fuse
+    try:
+        # First validate each independently to ensure structure is correct
+        g_valid = ExtractedDataWithConfidence(**g_json)  # noqa: F841 (not used directly beyond validation)
+        o_valid = ExtractedDataWithConfidence(**o_json)  # noqa: F841
+        print("✅ Both Gemini and OpenAI responses validated successfully.")
+        print(g_valid)
+        print(o_valid)
+        fused_payload = _build_fused_payload(g_json, o_json)
+
+        # Validate final payload before returning
+        final_valid = ExtractedDataWithConfidence(**fused_payload)
+        print("✅ Successfully fused Gemini and GPT results.")
+        return final_valid
+    except ValidationError as e:
+        raise HTTPException(status_code=500, detail=f"Fused response failed validation: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Fusion error: {e}")
+
+
+# Small helper to gather results with exceptions preserved
+import asyncio
+from typing import Awaitable
+
+
+async def asyncio_gather_safe(*aws: Awaitable[Any]) -> List[Tuple[Any, Optional[BaseException]]]:
+    """
+    Runs awaitables concurrently, returns list of (result, exception) for each.
+    If an awaitable raises, its (None, exc) is returned instead of propagating.
+    """
+    async def wrap(coro: Awaitable[Any]):
+        try:
+            res = await coro
+            return (res, None)
+        except BaseException as exc:  # capture broad exceptions from network calls
+            return (None, exc)
+
+    return await asyncio.gather(*[wrap(a) for a in aws])
+
+

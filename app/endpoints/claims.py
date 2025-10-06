@@ -1,4 +1,4 @@
-# app/endpoints.py
+# app/endpoint/claims.py
 
 from datetime import timedelta
 
@@ -78,6 +78,7 @@ async def create_extraction_request(
 
     # Call the core logic from your value_extractor service with the relevant pages
     extracted_data = await extract_data_from_bill(relevant_pdf_stream.getvalue())
+    # extracted_data = await extract_data_from_bill(file_content)
 
     return extracted_data
 

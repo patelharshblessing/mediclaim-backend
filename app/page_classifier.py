@@ -12,7 +12,7 @@ from sentence_transformers import SentenceTransformer
 # --- Configuration ---
 # Sunishchit karein ki yeh files aapke project ke root folder mein hain
 MODEL_FILE = "best_xgboost_classifier.joblib"
-LABEL_ENCODER_FILE = "label_encoder.joblib"
+LABEL_ENCODER_FILE = "/home/harsh/mediclaim_backend/label_encoder_best_xgboost.joblib"
 SENTENCE_TRANSFORMER_MODEL = "all-MiniLM-L6-v2"
 
 
@@ -114,28 +114,28 @@ class PageClassifier:
         print(f"✅ Classification complete. Found {sum(is_relevant_list)} relevant page(s).")
         return is_relevant_list
 
-# # --- Example Usage (How to test this file) ---
-# async def main_test():
-#     """A simple async function to test the classifier."""
-#     # Replace this with a path to a multi-page PDF for testing
-#     # test_pdf_path = "/home/harsh/mediclaim_backend/dataset/original_bills/6437344-Medical-Billing-Simple-Manual.pdf"
-#     test_pdf_path = "/home/harsh/mediclaim_backend/dataset/original_bills/claim_document/bill10.pdf"
+# --- Example Usage (How to test this file) ---
+async def main_test():
+    """A simple async function to test the classifier."""
+    # Replace this with a path to a multi-page PDF for testing
+    # test_pdf_path = "/home/harsh/mediclaim_backend/dataset/original_bills/6437344-Medical-Billing-Simple-Manual.pdf"
+    test_pdf_path = "/home/harsh/mediclaim_backend/dataset/labeled_dataset/relevant/229347951-Dengue-Bill-Pc-Edit_page_1.pdf"
     
-#     if not os.path.exists(test_pdf_path):
-#         print(f"Test file not found at: {test_pdf_path}")
-#         return
+    if not os.path.exists(test_pdf_path):
+        print(f"Test file not found at: {test_pdf_path}")
+        return
 
-#     with open(test_pdf_path, "rb") as f:
-#         pdf_bytes = f.read()
+    with open(test_pdf_path, "rb") as f:
+        pdf_bytes = f.read()
 
-#     classifier = PageClassifier()
-#     results = await classifier.classify_pages(pdf_bytes)
+    classifier = PageClassifier()
+    results = await classifier.classify_pages(pdf_bytes)
     
-#     print("\n--- Classification Results ---")
-#     for i, result in enumerate(results):
-#         print(f"Page {i+1}: {'Relevant' if result else 'Irrelevant'}")
+    print("\n--- Classification Results ---")
+    for i, result in enumerate(results):
+        print(f"Page {i+1}: {'Relevant' if result else 'Irrelevant'}")
 
-# if __name__ == "__main__":
-#     # To run this test, you'd need an async context
-#     asyncio.run(main_test())
-#     print("This is the PageClassifier module. It should be imported, not run directly.")
+if __name__ == "__main__":
+    # To run this test, you'd need an async context
+    asyncio.run(main_test())
+    print("This is the PageClassifier module. It should be imported, not run directly.")
