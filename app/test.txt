@@ -1,0 +1,40 @@
+async def extract_data_from_bill(file_content: bytes) -> ExtractedDataWithConfidence:
+    """
+    New workflow:
+      - If neither provider available => 503
+      - If only one available => return that provider's result as-is
+      - If both available => call both in parallel, fuse results per the matching & confidence rules,
+        and return the fused ExtractedDataWithConfidence
+    """
+    base64_images = convert_pdf_to_base64_images(file_content)
+
+    has_gemini_key = bool(getattr(settings, "GEMINI_API_KEY", None))
+    has_openai_key = bool(getattr(settings, "OPENAI_API_KEY", None))
+
+    if not has_gemini_key and not has_openai_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="No AI providers available: both GEMINI_API_KEY and OPENAI_API_KEY are missing.",
+        )
+
+    # If only one provider is configured, call it and return raw result
+    if has_gemini_key and not has_openai_key:
+        try:
+            ai_json = await _call_gemini_api(base64_images)
+            return ExtractedDataWithConfidence(**ai_json)
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Gemini provider failed: {e}",
+            )
+
+    if has_openai_key and not has_gemini_key:
+        try:
+            ai_json = await _call_openai_api(base64_images)
+            return ExtractedDataWithConfidence(**ai_json)
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"OpenAI provider failed: {e}",
+
+    // I want to change the method in which the uptime of gpt and gemini is checked. i want ot implement a robust uptime checking in which a lightwiehgt message should be send to both  got check thier uptime. what is your view on this

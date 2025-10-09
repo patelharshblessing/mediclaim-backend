@@ -1,6 +1,7 @@
 # app/endpoint/claims.py
 
 import io  # For in-memory file handling
+import time
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
@@ -30,6 +31,16 @@ from ..value_extractor import extract_data_from_bill
 # import db
 db = get_db()
 
+LOG_FILE = "time_logging.txt"
+
+
+def log_time(step: str, value: any):
+    with open(LOG_FILE, "a") as log_file:
+        if isinstance(value, float):
+            log_file.write(f"{step}: {value:.2f} seconds\n")
+        else:
+            log_file.write(f"{step}: {value}\n")
+
 
 # We use APIRouter to keep endpoint definitions organized
 claims_router = APIRouter()
@@ -51,18 +62,30 @@ async def create_extraction_request(
     )
 
     # Read the uploaded PDF file
+    log_time("File Name", file.filename if file.filename else "Unknown")
     file_content = await file.read()
 
     pdf_reader = PdfReader(io.BytesIO(file_content))
+    total_pages = len(pdf_reader.pages)
+
     page_classifier = PageClassifier()
     # Classify pages to find relevant ones
+    start_time = time.time()
     relevant_pages_bool = await page_classifier.classify_pages(file_content)
-    print(f"Relevant pages identified: {relevant_pages_bool}")
+    duration = time.time() - start_time
+    
+    log_time("Page Classification", duration)
 
-    # Convert boolean list to page indices
     relevant_pages = [
         i for i, is_relevant in enumerate(relevant_pages_bool) if is_relevant
     ]
+
+    # Log additional details
+    
+    log_time("Total Pages", total_pages)
+    log_time("Relevant Pages", len(relevant_pages))
+
+    print(f"Relevant pages identified: {relevant_pages_bool}")
     print(f"Relevant page indices: {relevant_pages}")
     # Create a new PDF with only the relevant pages
     relevant_pdf_writer = PdfWriter()
@@ -79,8 +102,9 @@ async def create_extraction_request(
     print("Relevant pages saved as 'relevant_pages.pdf'")
 
     # Call the core logic from your value_extractor service with the relevant pages
-    extracted_data = await extract_data_from_bill(relevant_pdf_stream.getvalue())
-    # extracted_data = await extract_data_from_bill(file_content)
+    start_time = time.time()
+    extracted_data = await extract_data_from_bill(file_content)
+    log_time("Values Extraction", time.time() - start_time)
 
     return extracted_data
 
@@ -101,9 +125,12 @@ async def create_adjudication_request(
     Receives structured bill data and applies the adjudication rules engine.
     This is the second step in the workflow.
     """
+    start_time = time.time()
     adjudicated_result = await adjudicate_claim(
         extracted_data, insurance_details, normalizationservice=normalizationservice
     )
+    log_time("Total adjudication time", time.time() - start_time)
+
     print("saving the adjudicated claim to the database")
     db_claim = crud.create_claim_record(
         db=db,

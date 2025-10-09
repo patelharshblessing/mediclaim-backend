@@ -1,0 +1,126 @@
+File Name: real1.pdf
+Page Classification: 43.45 seconds
+Total Pages: 20
+Relevant Pages: 5
+Values Extraction: 168.97 seconds
+Rules Matching: 7.00 seconds
+Rules Application: 34.41 seconds
+Sanity Check: 11.67 seconds
+Total adjudication time: 53.40 seconds
+File Name: real2.pdf
+Page Classification: 23.00 seconds
+Total Pages: 49
+Relevant Pages: 21
+Values Extraction: 157.56 seconds
+Rules Matching: 9.56 seconds
+Rules Application: 36.67 seconds
+Sanity Check: 10.44 seconds
+Total adjudication time: 56.84 seconds
+File Name: real3.pdf
+Page Classification: 13.09 seconds
+Total Pages: 49
+Relevant Pages: 27
+File Name: real3.pdf
+Page Classification: 13.24 seconds
+Total Pages: 49
+Relevant Pages: 27
+File Name: real3.pdf
+Page Classification: 13.48 seconds
+Total Pages: 49
+Relevant Pages: 27
+File Name: real3.pdf
+Page Classification: 13.26 seconds
+Total Pages: 49
+Relevant Pages: 27
+Values Extraction: 319.45 seconds
+File Name: real3.pdf
+Page Classification: 13.29 seconds
+Total Pages: 49
+Relevant Pages: 27
+File Name: real3.pdf
+File Name: real3.pdf
+Page Classification: 13.78 seconds
+Total Pages: 49
+Relevant Pages: 27
+File Name: real3.pdf
+Page Classification: 13.25 seconds
+Total Pages: 49
+Relevant Pages: 27
+File Name: real3.pdf
+Page Classification: 16.24 seconds
+Total Pages: 49
+Relevant Pages: 27
+File Name: real3.pdf
+Page Classification: 15.07 seconds
+Total Pages: 49
+Relevant Pages: 27
+File Name: real3.pdf
+Page Classification: 15.37 seconds
+Total Pages: 49
+Relevant Pages: 27
+File Name: real3.pdf
+Page Classification: 15.08 seconds
+Total Pages: 49
+Relevant Pages: 27
+File Name: real3.pdf
+Page Classification: 15.63 seconds
+Total Pages: 49
+Relevant Pages: 27
+File Name: real3.pdf
+Page Classification: 14.28 seconds
+Total Pages: 49
+Relevant Pages: 27
+File Name: real3.pdf
+Page Classification: 14.50 seconds
+Total Pages: 49
+Relevant Pages: 27
+File Name: real3.pdf
+Page Classification: 14.87 seconds
+Total Pages: 49
+Relevant Pages: 27
+File Name: real3.pdf
+Page Classification: 35.74 seconds
+Total Pages: 49
+Relevant Pages: 27
+File Name: real3.pdf
+Page Classification: 46.88 seconds
+Total Pages: 49
+Relevant Pages: 27
+File Name: real4.pdf
+Page Classification: 43.91 seconds
+Total Pages: 40
+Relevant Pages: 13
+Values Extraction: 271.35 seconds
+File Name: real4.pdf
+File Name: real4.pdf
+Page Classification: 47.13 seconds
+Total Pages: 40
+Relevant Pages: 13
+Values Extraction: 266.53 seconds
+Rules Matching: 15.14 seconds
+Rules Application: 21.39 seconds
+Sanity Check: 9.53 seconds
+Total adjudication time: 46.17 seconds
+File Name: real2.pdf
+Page Classification: 41.18 seconds
+Total Pages: 49
+Relevant Pages: 21
+File Name: real2.pdf
+Page Classification: 42.36 seconds
+Total Pages: 49
+Relevant Pages: 21
+File Name: real4.pdf
+File Name: real2.pdf
+Page Classification: 46.62 seconds
+Total Pages: 49
+Relevant Pages: 21
+Values Extraction: 214.42 seconds
+Rules Matching: 17.18 seconds
+Rules Application: 53.13 seconds
+Sanity Check: 11.78 seconds
+Total adjudication time: 82.25 seconds
+File Name: real2.pdf
+Page Classification: 74.15 seconds
+Total Pages: 49
+Relevant Pages: 21
+Values Extraction: 153.62 seconds

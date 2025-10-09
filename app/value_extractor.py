@@ -5,6 +5,7 @@ import json
 import math
 from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
+import time
 
 import httpx
 from fastapi import HTTPException, status
@@ -193,6 +194,10 @@ def _desc_match_score(desc_a: str, desc_b: str) -> float:
     return max(fz, emb)
 
 
+# You need to update only the `_descriptions_match` function inside app/value_extractor.py
+# Locate this existing function:
+
+
 def _descriptions_match(desc_a: str, desc_b: str) -> Tuple[bool, float]:
     """
     Decide if two descriptions match by hybrid logic:
@@ -204,13 +209,31 @@ def _descriptions_match(desc_a: str, desc_b: str) -> Tuple[bool, float]:
     na, nb = _normalize_text(desc_a), _normalize_text(desc_b)
     if na and na == nb:
         return True, 1.0
+
+    # Token-set containment logic
+    tokens_a = set(na.split())
+    tokens_b = set(nb.split())
+    if tokens_a.issubset(tokens_b) or tokens_b.issubset(tokens_a):
+        return True, 0.9  # or 0.85 if you want to be stricter
+
     fz = _fuzzy_ratio(na, nb)
     if fz >= 0.90:
         return True, fz
+
     emb = _embed_similarity(na, nb) if _embed_model is not None else 0.0
     if emb >= 0.80:
         return True, emb
+
     return False, max(fz, emb)
+
+
+# With this change, identical descriptions and ones like 'SGPT' vs 'Pathology Investigation - SGPT'
+# will now match correctly and avoid duplicate line items.
+
+# No changes are required in _greedy_match_pairs or _merge_line_items because
+# they already use _descriptions_match internally.
+
+# ✅ DONE
 
 
 # ---------------------------
@@ -238,12 +261,16 @@ async def _call_gemini_api(base64_images: List[str]) -> Dict[str, Any]:
         "generationConfig": {"response_mime_type": "application/json"},
     }
 
+    start_time = time.time()
     async with httpx.AsyncClient(timeout=120.0) as client:
         response = await client.post(GEMINI_API_URL, json=payload)
         response.raise_for_status()
+    duration = time.time() - start_time
+    print(f"Gemini API call took {duration:.2f} seconds.")
 
     result = response.json()
     ai_response_str = result["candidates"][0]["content"]["parts"][0]["text"]
+    print(f"Gemini response: {ai_response_str}")
     return json.loads(ai_response_str)
 
 
@@ -262,13 +289,17 @@ async def _call_openai_api(base64_images: List[str]) -> Dict[str, Any]:
             }
         )
 
+    start_time = time.time()
     response = openai_client.chat.completions.create(
         model="gpt-5",
         messages=messages,
         response_format={"type": "json_object"},
     )
+    duration = time.time() - start_time
+    print(f"GPT-5 API call took {duration:.2f} seconds.")
 
     ai_response_str = response.choices[0].message.content
+    print(f"Gemini response: {ai_response_str}")
     return json.loads(ai_response_str)
 
 
@@ -499,6 +530,53 @@ def _build_fused_payload(g: Dict[str, Any], o: Dict[str, Any]) -> Dict[str, Any]
 # ---------------------------
 # Main Orchestrator
 # ---------------------------
+async def _check_gemini_uptime() -> bool:
+    """Check if the Gemini API is up by sending a lightweight test request."""
+    if not getattr(settings, "GEMINI_API_KEY", None):
+        return False
+
+    GEMINI_API_URL = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent"
+        f"?key={settings.GEMINI_API_KEY}"
+    )
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            response = await client.post(
+                GEMINI_API_URL, json={"contents": [{"parts": [{"text": "ping"}]}]}
+            )
+            return response.status_code == 200
+    except Exception:
+        return False
+
+
+async def _check_openai_uptime() -> bool:
+    """Check if the OpenAI API is up by sending a lightweight test request."""
+    if openai_client is None:
+        print("OpenAI client is not configured. Check OPENAI_API_KEY in settings.")
+        return False
+
+    try:
+        # Ensure timeout is properly handled
+        response = openai_client.chat.completions.create(
+            model="gpt-5",
+            messages=[{"role": "user", "content": '{"ping": "json"}'}],
+            response_format={"type": "json_object"},
+            timeout=20.0,  # Explicit timeout
+        )
+
+        # Validate response structure
+        if response and hasattr(response, "choices") and response.choices:
+            return True
+        else:
+            print("OpenAI API response is invalid or empty.")
+            return False
+
+    except Exception as e:
+        print(f"Error during OpenAI uptime check: {e}")
+        return False
+
+
 async def extract_data_from_bill(file_content: bytes) -> ExtractedDataWithConfidence:
     """
     New workflow:
@@ -509,17 +587,17 @@ async def extract_data_from_bill(file_content: bytes) -> ExtractedDataWithConfid
     """
     base64_images = convert_pdf_to_base64_images(file_content)
 
-    has_gemini_key = bool(getattr(settings, "GEMINI_API_KEY", None))
-    has_openai_key = bool(getattr(settings, "OPENAI_API_KEY", None))
-
-    if not has_gemini_key and not has_openai_key:
+    gemini_up = await _check_gemini_uptime()
+    openai_up = await _check_openai_uptime()
+    print(f"Gemini up: {gemini_up}, OpenAI up: {openai_up}")
+    if not gemini_up and not openai_up:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="No AI providers available: both GEMINI_API_KEY and OPENAI_API_KEY are missing.",
+            detail="No AI providers available: both Gemini and OpenAI are down.",
         )
 
-    # If only one provider is configured, call it and return raw result
-    if has_gemini_key and not has_openai_key:
+    # If only one provider is up, call it and return raw result
+    if gemini_up and not openai_up:
         try:
             ai_json = await _call_gemini_api(base64_images)
             return ExtractedDataWithConfidence(**ai_json)
@@ -529,7 +607,7 @@ async def extract_data_from_bill(file_content: bytes) -> ExtractedDataWithConfid
                 detail=f"Gemini provider failed: {e}",
             )
 
-    if has_openai_key and not has_gemini_key:
+    if openai_up and not gemini_up:
         try:
             ai_json = await _call_openai_api(base64_images)
             return ExtractedDataWithConfidence(**ai_json)
@@ -539,7 +617,7 @@ async def extract_data_from_bill(file_content: bytes) -> ExtractedDataWithConfid
                 detail=f"OpenAI provider failed: {e}",
             )
 
-    # Both providers configured → call in parallel
+    # Both providers are up → call in parallel
     g_json: Optional[Dict[str, Any]] = None
     o_json: Optional[Dict[str, Any]] = None
     g_err: Optional[Exception] = None
