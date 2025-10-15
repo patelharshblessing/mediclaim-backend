@@ -234,6 +234,8 @@ class ExtractedDataWithConfidence(BaseModel):
     discharge_date: FieldWithConfidence
     net_payable_amount: FieldWithConfidence
     line_items: List[LineItemWithConfidence]
+    # policy_no: FieldWithConfidence
+    # insurance_provider: FieldWithConfidence
 
 
 class PolicyRuleMatch(BaseModel):

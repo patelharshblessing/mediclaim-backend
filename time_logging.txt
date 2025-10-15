@@ -87,16 +87,6 @@ Page Classification: 46.88 seconds
 Total Pages: 49
 Relevant Pages: 27
 File Name: real4.pdf
-Page Classification: 43.91 seconds
-Total Pages: 40
-Relevant Pages: 13
-Values Extraction: 271.35 seconds
-File Name: real4.pdf
-File Name: real4.pdf
-Page Classification: 47.13 seconds
-Total Pages: 40
-Relevant Pages: 13
-Values Extraction: 266.53 seconds
 Rules Matching: 15.14 seconds
 Rules Application: 21.39 seconds
 Sanity Check: 9.53 seconds
@@ -124,3 +114,54 @@ Page Classification: 74.15 seconds
 Total Pages: 49
 Relevant Pages: 21
 Values Extraction: 153.62 seconds
+File Name: real2.pdf
+Page Classification: 11.36 seconds
+Total Pages: 49
+Relevant Pages: 0
+Values Extraction: 166.03 seconds
+Rules Matching: 12.74 seconds
+Rules Application: 69.75 seconds
+Sanity Check: 24.06 seconds
+Total adjudication time: 106.89 seconds
+File Name: real2.pdf
+Page Classification: 11.42 seconds
+Total Pages: 49
+Relevant Pages: 0
+File Name: real2.pdf
+Page Classification: 34.56 seconds
+Total Pages: 49
+Relevant Pages: 21
+Values Extraction: 160.27 seconds
+Rules Matching: 10.21 seconds
+Rules Application: 35.87 seconds
+Sanity Check: 10.90 seconds
+Total adjudication time: 57.30 seconds
+File Name: real2.pdf
+Page Classification: 72.53 seconds
+Total Pages: 49
+Relevant Pages: 21
+Values Extraction: 198.57 seconds
+File Name: real2.pdf
+Page Classification: 59.04 seconds
+Total Pages: 49
+Relevant Pages: 21
+Values Extraction: 180.61 seconds
+Rules Matching: 17.85 seconds
+Rules Application: 77.84 seconds
+Sanity Check: 13.51 seconds
+Total adjudication time: 110.02 seconds
+File Name: 22034-ClaimForm_Rohini.pdf
+Page Classification: 6.93 seconds
+Total Pages: 6
+Relevant Pages: 1
+File Name: Claim Form.pdf
+Page Classification: 24.10 seconds
+Total Pages: 5
+Relevant Pages: 0
+File Name: Claim Form.pdf
+File Name: Claim Form.pdf
+File Name: Claim Form.pdf
+Rules Matching: 17.41 seconds
+Rules Application: 63.23 seconds
+Sanity Check: 17.96 seconds
+Total adjudication time: 100.13 seconds

@@ -65,46 +65,47 @@ async def create_extraction_request(
     log_time("File Name", file.filename if file.filename else "Unknown")
     file_content = await file.read()
 
-    pdf_reader = PdfReader(io.BytesIO(file_content))
-    total_pages = len(pdf_reader.pages)
+    # pdf_reader = PdfReader(io.BytesIO(file_content))
+    # total_pages = len(pdf_reader.pages)
 
-    page_classifier = PageClassifier()
-    # Classify pages to find relevant ones
-    start_time = time.time()
-    relevant_pages_bool = await page_classifier.classify_pages(file_content)
-    duration = time.time() - start_time
+    # page_classifier = PageClassifier()
+    # # Classify pages to find relevant ones
+    # start_time = time.time()
+    # relevant_pages_bool = await page_classifier.classify_pages(file_content)
+    # duration = time.time() - start_time
     
-    log_time("Page Classification", duration)
+    # log_time("Page Classification", duration)
 
-    relevant_pages = [
-        i for i, is_relevant in enumerate(relevant_pages_bool) if is_relevant
-    ]
+    # relevant_pages = [
+    #     i for i, is_relevant in enumerate(relevant_pages_bool) if is_relevant
+    # ]
 
-    # Log additional details
+    # # Log additional details
     
-    log_time("Total Pages", total_pages)
-    log_time("Relevant Pages", len(relevant_pages))
+    # log_time("Total Pages", total_pages)
+    # log_time("Relevant Pages", len(relevant_pages))
 
-    print(f"Relevant pages identified: {relevant_pages_bool}")
-    print(f"Relevant page indices: {relevant_pages}")
-    # Create a new PDF with only the relevant pages
-    relevant_pdf_writer = PdfWriter()
-    for page_num in relevant_pages:
-        relevant_pdf_writer.add_page(pdf_reader.pages[page_num])
+    # print(f"Relevant pages identified: {relevant_pages_bool}")
+    # print(f"Relevant page indices: {relevant_pages}")
+    # # Create a new PDF with only the relevant pages
+    # relevant_pdf_writer = PdfWriter()
+    # for page_num in relevant_pages:
+    #     relevant_pdf_writer.add_page(pdf_reader.pages[page_num])
 
-    # Write the relevant pages to an in-memory file
-    relevant_pdf_stream = io.BytesIO()
-    relevant_pdf_writer.write(relevant_pdf_stream)
-    relevant_pdf_stream.seek(0)
-    # Save the relevant pages as a PDF file for cross-checking
-    with open("relevant_pages.pdf", "wb") as f:
-        f.write(relevant_pdf_stream.getvalue())
-    print("Relevant pages saved as 'relevant_pages.pdf'")
+    # # Write the relevant pages to an in-memory file
+    # relevant_pdf_stream = io.BytesIO()
+    # relevant_pdf_writer.write(relevant_pdf_stream)
+    # relevant_pdf_stream.seek(0)
+    # # Save the relevant pages as a PDF file for cross-checking
+    # with open("relevant_pages.pdf", "wb") as f:
+    #     f.write(relevant_pdf_stream.getvalue())
+    # print("Relevant pages saved as 'relevant_pages.pdf'")
 
-    # Call the core logic from your value_extractor service with the relevant pages
-    start_time = time.time()
+    # # Call the core logic from your value_extractor service with the relevant pages
+    # start_time = time.time()
+    # extracted_data = await extract_data_from_bill(file_content)
     extracted_data = await extract_data_from_bill(file_content)
-    log_time("Values Extraction", time.time() - start_time)
+    # log_time("Values Extraction", time.time() - start_time)
 
     return extracted_data
 

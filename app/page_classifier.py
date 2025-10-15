@@ -145,3 +145,4 @@ if __name__ == "__main__":
     # To run this test, you'd need an async context
     asyncio.run(main_test())
     print("This is the PageClassifier module. It should be imported, not run directly.")
+''

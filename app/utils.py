@@ -4,6 +4,9 @@
 from fastapi import HTTPException, UploadFile, status
 
 from .config import settings
+from .logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def validate_and_preprocess_file(file: UploadFile) -> bool:
@@ -26,5 +29,5 @@ def validate_and_preprocess_file(file: UploadFile) -> bool:
         )
 
     # Placeholder for PDF to image conversion
-    print("File validated successfully. Pretending to convert PDF to image...")
+    logger.info("File validated successfully. Pretending to convert PDF to image...")
     return True

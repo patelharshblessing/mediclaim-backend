@@ -14,7 +14,10 @@ from pdf2image import convert_from_bytes
 from pydantic import ValidationError
 
 from .config import settings
+from .logger import get_logger
 from .pydantic_schemas import ExtractedDataWithConfidence
+
+logger = get_logger(__name__)
 
 # --- Optional semantic similarity support (uses same model as normalization_service) ---
 try:
@@ -533,6 +536,7 @@ def _build_fused_payload(g: Dict[str, Any], o: Dict[str, Any]) -> Dict[str, Any]
 async def _check_gemini_uptime() -> bool:
     """Check if the Gemini API is up by sending a lightweight test request."""
     if not getattr(settings, "GEMINI_API_KEY", None):
+        logger.warning("GEMINI_API_KEY is not configured.")
         return False
 
     GEMINI_API_URL = (
@@ -545,15 +549,19 @@ async def _check_gemini_uptime() -> bool:
             response = await client.post(
                 GEMINI_API_URL, json={"contents": [{"parts": [{"text": "ping"}]}]}
             )
+            logger.info("Gemini API uptime check response: %s", response.status_code)
             return response.status_code == 200
-    except Exception:
+    except Exception as e:
+        logger.error("Error during Gemini uptime check: %s", e, exc_info=True)
         return False
 
 
 async def _check_openai_uptime() -> bool:
     """Check if the OpenAI API is up by sending a lightweight test request."""
     if openai_client is None:
-        print("OpenAI client is not configured. Check OPENAI_API_KEY in settings.")
+        logger.warning(
+            "OpenAI client is not configured. Check OPENAI_API_KEY in settings."
+        )
         return False
 
     try:
@@ -567,13 +575,14 @@ async def _check_openai_uptime() -> bool:
 
         # Validate response structure
         if response and hasattr(response, "choices") and response.choices:
+            logger.info("OpenAI API uptime check successful.")
             return True
         else:
-            print("OpenAI API response is invalid or empty.")
+            logger.warning("OpenAI API response is invalid or empty.")
             return False
 
     except Exception as e:
-        print(f"Error during OpenAI uptime check: {e}")
+        logger.error("Error during OpenAI uptime check: %s", e, exc_info=True)
         return False
 
 
@@ -610,6 +619,7 @@ async def extract_data_from_bill(file_content: bytes) -> ExtractedDataWithConfid
     if openai_up and not gemini_up:
         try:
             ai_json = await _call_openai_api(base64_images)
+  
             return ExtractedDataWithConfidence(**ai_json)
         except Exception as e:
             raise HTTPException(
