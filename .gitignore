@@ -40,7 +40,6 @@ __pycache__/
 *.pdf
 *.png
 *.jpg
-*.sql
 *.csv#
 *.db
 *.gz
