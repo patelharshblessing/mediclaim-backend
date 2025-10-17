@@ -17,6 +17,9 @@ from .config import settings
 from .logger import get_logger
 from .pydantic_schemas import ExtractedDataWithConfidence
 
+import asyncio
+from typing import Any, Awaitable, List, Tuple, Optional
+
 logger = get_logger(__name__)
 
 # --- Optional semantic similarity support (uses same model as normalization_service) ---
@@ -293,17 +296,91 @@ async def _call_openai_api(base64_images: List[str]) -> Dict[str, Any]:
         )
 
     start_time = time.time()
-    response = openai_client.chat.completions.create(
+    response = await asyncio.to_thread(
+        openai_client.chat.completions.create,
         model="gpt-5",
         messages=messages,
         response_format={"type": "json_object"},
     )
+
     duration = time.time() - start_time
     print(f"GPT-5 API call took {duration:.2f} seconds.")
 
     ai_response_str = response.choices[0].message.content
     print(f"Gemini response: {ai_response_str}")
     return json.loads(ai_response_str)
+
+# 🔹 NEW: Claude Sonnet provider call
+async def _call_sonnet_api(base64_images: List[str]) -> Dict[str, Any]:
+    """
+    Makes an API call to Claude Sonnet 4.5 via Anthropic Messages API.
+    Cleans Markdown JSON fences if present and returns valid parsed JSON.
+    """
+    if not getattr(settings, "CLAUDE_API_KEY", None):
+        raise RuntimeError("CLAUDE_API_KEY not configured.")
+    print("Attempting extraction with Claude Sonnet 4.5...")
+
+    CLAUDE_API_URL = "https://api.anthropic.com/v1/messages"
+    CLAUDE_MODEL = "claude-sonnet-4-5-20250929"
+
+    headers = {
+        "x-api-key": settings.CLAUDE_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+    }
+
+    # Build the multimodal message
+    content: List[Dict[str, Any]] = [{"type": "text", "text": MASTER_PROMPT}]
+    for b64 in base64_images:
+        content.append({
+            "type": "image",
+            "source": {"type": "base64", "media_type": "image/jpeg", "data": b64},
+        })
+
+    payload = {
+        "model": CLAUDE_MODEL,
+        "max_tokens": 1500,
+        "messages": [{"role": "user", "content": content}],
+    }
+
+    start_time = time.time()
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        response = await client.post(CLAUDE_API_URL, headers=headers, json=payload)
+        response.raise_for_status()
+    duration = time.time() - start_time
+    print(f"Claude Sonnet API call took {duration:.2f} seconds.")
+
+    data = response.json()
+    if not data.get("content"):
+        raise RuntimeError("Claude API returned no 'content' blocks.")
+
+    block0 = data["content"][0]
+    if block0.get("type") != "text":
+        raise RuntimeError("Claude API returned non-text first block.")
+
+    ai_response_str = block0.get("text", "").strip()
+
+    # --- 🔧 Clean Markdown or extra wrapping ---
+    import re
+    ai_response_str = ai_response_str.strip()
+    ai_response_str = re.sub(r"^```(?:json)?\s*", "", ai_response_str)
+    ai_response_str = re.sub(r"\s*```$", "", ai_response_str)
+    ai_response_str = ai_response_str.strip()
+
+    # --- Optional sanity: if model added “Sure, here’s JSON:” etc. ---
+    if ai_response_str.lower().startswith("sure"):
+        ai_response_str = ai_response_str.split("{", 1)[-1]
+        ai_response_str = "{" + ai_response_str
+    print(f"Cleaned Claude response: {ai_response_str}")
+    try:
+        parsed_json = json.loads(ai_response_str)
+        print(f"Parsed JSON: {parsed_json}")
+        return parsed_json
+    except json.JSONDecodeError as e:
+        raise RuntimeError(
+            f"Claude Sonnet returned invalid JSON: {e}\n\nRaw text received:\n{ai_response_str}"
+        )
+
 
 
 # ---------------------------
@@ -585,114 +662,148 @@ async def _check_openai_uptime() -> bool:
         logger.error("Error during OpenAI uptime check: %s", e, exc_info=True)
         return False
 
+# 🔹 NEW: Sonnet uptime check
+async def _check_sonnet_uptime() -> bool:
+    """Lightweight ping to Anthropic to ensure service is reachable & key is valid."""
+    if not getattr(settings, "CLAUDE_API_KEY", None):
+        logger.warning("CLAUDE_API_KEY is not configured.")
+        return False
 
+    CLAUDE_API_URL = "https://api.anthropic.com/v1/messages"
+    CLAUDE_MODEL = "claude-sonnet-4-5-20250929"
+
+    headers = {
+        "x-api-key": settings.CLAUDE_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+    }
+    payload = {
+        "model": CLAUDE_MODEL,
+        "max_tokens": 10,
+        "messages": [{"role": "user", "content": [{"type": "text", "text": "ping"}]}],
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            r = await client.post(CLAUDE_API_URL, headers=headers, json=payload)
+        logger.info("Claude Sonnet uptime check response: %s", r.status_code)
+        return r.status_code == 200
+    except Exception as e:
+        logger.error("Error during Sonnet uptime check: %s", e, exc_info=True)
+        return False
+
+
+
+
+
+# 🔸 MODIFIED: Orchestrator to use Sonnet as fallback when one of (Gemini, GPT) is unavailable
 async def extract_data_from_bill(file_content: bytes) -> ExtractedDataWithConfidence:
     """
-    New workflow:
-      - If neither provider available => 503
-      - If only one available => return that provider's result as-is
-      - If both available => call both in parallel, fuse results per the matching & confidence rules,
-        and return the fused ExtractedDataWithConfidence
+    Orchestration with three providers (Gemini, GPT-5, Sonnet 4.5):
+      - Preferred pair: Gemini + GPT-5
+      - If one of (Gemini, GPT-5) is down → replace the missing one with Sonnet
+      - If only a single provider is up → return that provider's result as-is
+      - If none are up → 503
+    Fusion logic remains unchanged and still expects exactly two payloads when using a pair.
     """
     base64_images = convert_pdf_to_base64_images(file_content)
 
     gemini_up = await _check_gemini_uptime()
     openai_up = await _check_openai_uptime()
-    print(f"Gemini up: {gemini_up}, OpenAI up: {openai_up}")
-    if not gemini_up and not openai_up:
+    sonnet_up = await _check_sonnet_uptime()
+    print(f"Gemini up: {gemini_up}, OpenAI up: {openai_up}, Sonnet up: {sonnet_up}")
+
+    # If none up
+    if not gemini_up and not openai_up and not sonnet_up:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="No AI providers available: both Gemini and OpenAI are down.",
+            detail="No AI providers available: Gemini, OpenAI, and Sonnet are all down.",
         )
 
-    # If only one provider is up, call it and return raw result
-    if gemini_up and not openai_up:
-        try:
-            ai_json = await _call_gemini_api(base64_images)
-            return ExtractedDataWithConfidence(**ai_json)
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"Gemini provider failed: {e}",
-            )
+    # Choose best pair according to rule:
+    # 1) Gemini + GPT (preferred)
+    # 2) If one of them is down, replace the missing one with Sonnet (if available)
+    chosen_calls: List[Any] = []
+    chosen_labels: List[str] = []
 
-    if openai_up and not gemini_up:
-        try:
-            ai_json = await _call_openai_api(base64_images)
-  
-            return ExtractedDataWithConfidence(**ai_json)
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"OpenAI provider failed: {e}",
-            )
-
-    # Both providers are up → call in parallel
-    g_json: Optional[Dict[str, Any]] = None
-    o_json: Optional[Dict[str, Any]] = None
-    g_err: Optional[Exception] = None
-    o_err: Optional[Exception] = None
-
-    async with (
-        httpx.AsyncClient()
-    ):  # dummy to emphasize async context; provider funcs manage their own clients
-        results = await asyncio_gather_safe(
-            _call_gemini_api(base64_images),
-            _call_openai_api(base64_images),
-        )
-
-    # Unpack results
-    (g_res, g_exc), (o_res, o_exc) = results
-
-    if g_exc is None:
-        g_json = g_res
+    if gemini_up and openai_up:
+        chosen_calls = [_call_gemini_api(base64_images), _call_openai_api(base64_images)]
+        chosen_labels = ["Gemini", "GPT-5"]
+    elif gemini_up and not openai_up and sonnet_up:
+        chosen_calls = [_call_gemini_api(base64_images), _call_sonnet_api(base64_images)]
+        chosen_labels = ["Gemini", "Sonnet"]
+    elif openai_up and not gemini_up and sonnet_up:
+        chosen_calls = [_call_openai_api(base64_images), _call_sonnet_api(base64_images)]
+        chosen_labels = ["GPT-5", "Sonnet"]
     else:
-        g_err = g_exc
+        # No valid pair available → fall back to single available provider
+        if gemini_up:
+            try:
+                ai_json = await _call_gemini_api(base64_images)
+                return ExtractedDataWithConfidence(**ai_json)
+            except Exception as e:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail=f"Gemini provider failed: {e}",
+                )
+        if openai_up:
+            try:
+                ai_json = await _call_openai_api(base64_images)
+                return ExtractedDataWithConfidence(**ai_json)
+            except Exception as e:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail=f"OpenAI provider failed: {e}",
+                )
+        if sonnet_up:
+            try:
+                ai_json = await _call_sonnet_api(base64_images)
+                return ExtractedDataWithConfidence(**ai_json)
+            except Exception as e:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail=f"Sonnet provider failed: {e}",
+                )
 
-    if o_exc is None:
-        o_json = o_res
-    else:
-        o_err = o_exc
+    # We have a chosen pair → run in parallel and fuse
+    print(f"Using providers: {chosen_labels[0]} + {chosen_labels[1]}")
+    results = await asyncio_gather_safe(*chosen_calls)
 
-    # If only one succeeded, return it raw (as-is)
-    if g_json is not None and o_json is None:
+    (res1, exc1), (res2, exc2) = results
+
+    # If one failed, return the successful one as-is
+    if exc1 is None and exc2 is not None:
         try:
-            return ExtractedDataWithConfidence(**g_json)
+            return ExtractedDataWithConfidence(**res1)
         except ValidationError as e:
             raise HTTPException(
-                status_code=500, detail=f"Gemini response failed validation: {e}"
+                status_code=500, detail=f"{chosen_labels[0]} response failed validation: {e}"
             )
-
-    if o_json is not None and g_json is None:
+    if exc2 is None and exc1 is not None:
         try:
-            return ExtractedDataWithConfidence(**o_json)
+            return ExtractedDataWithConfidence(**res2)
         except ValidationError as e:
             raise HTTPException(
-                status_code=500, detail=f"OpenAI response failed validation: {e}"
+                status_code=500, detail=f"{chosen_labels[1]} response failed validation: {e}"
             )
 
     # If both failed
-    if g_json is None and o_json is None:
+    if exc1 is not None and exc2 is not None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Both providers failed. Gemini error: {g_err}; OpenAI error: {o_err}",
+            detail=f"Both chosen providers failed. {chosen_labels[0]} error: {exc1}; {chosen_labels[1]} error: {exc2}",
         )
 
-    # Both succeeded → fuse
+    # Both succeeded → fuse (unchanged)
     try:
-        # First validate each independently to ensure structure is correct
-        g_valid = ExtractedDataWithConfidence(
-            **g_json
-        )  # noqa: F841 (not used directly beyond validation)
-        o_valid = ExtractedDataWithConfidence(**o_json)  # noqa: F841
-        print("✅ Both Gemini and OpenAI responses validated successfully.")
-        print(g_valid)
-        print(o_valid)
-        fused_payload = _build_fused_payload(g_json, o_json)
+        _ = ExtractedDataWithConfidence(**res1)
+        _ = ExtractedDataWithConfidence(**res2)
+        print(f"✅ Both {chosen_labels[0]} and {chosen_labels[1]} responses validated successfully.")
 
-        # Validate final payload before returning
+        fused_payload = _build_fused_payload(res1, res2)
+
         final_valid = ExtractedDataWithConfidence(**fused_payload)
-        print("✅ Successfully fused Gemini and GPT results.")
+        print(f"✅ Successfully fused {chosen_labels[0]} and {chosen_labels[1]} results.")
         return final_valid
     except ValidationError as e:
         raise HTTPException(
@@ -700,11 +811,6 @@ async def extract_data_from_bill(file_content: bytes) -> ExtractedDataWithConfid
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Fusion error: {e}")
-
-
-# Small helper to gather results with exceptions preserved
-import asyncio
-from typing import Awaitable
 
 
 async def asyncio_gather_safe(

@@ -103,7 +103,7 @@ async def create_extraction_request(
 
     # # Call the core logic from your value_extractor service with the relevant pages
     # start_time = time.time()
-    # extracted_data = await extract_data_from_bill(file_content)
+    # extracted_data = await extract_data_from_bill(relevant_pdf_stream.getvalue())
     extracted_data = await extract_data_from_bill(file_content)
     # log_time("Values Extraction", time.time() - start_time)
 

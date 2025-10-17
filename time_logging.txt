@@ -165,3 +165,59 @@ Rules Matching: 17.41 seconds
 Rules Application: 63.23 seconds
 Sanity Check: 17.96 seconds
 Total adjudication time: 100.13 seconds
+File Name: bill11.pdf
+Page Classification: 0.75 seconds
+Total Pages: 1
+Relevant Pages: 0
+File Name: bill11.pdf
+Page Classification: 0.57 seconds
+Total Pages: 1
+Relevant Pages: 0
+File Name: bill11.pdf
+Page Classification: 1.89 seconds
+Total Pages: 1
+Relevant Pages: 1
+Values Extraction: 90.85 seconds
+File Name: bill11.pdf
+Page Classification: 2.37 seconds
+Total Pages: 1
+Relevant Pages: 1
+File Name: bill11.pdf
+Page Classification: 2.33 seconds
+Total Pages: 1
+Relevant Pages: 1
+File Name: bill11.pdf
+Page Classification: 2.34 seconds
+Total Pages: 1
+Relevant Pages: 1
+Values Extraction: 151.66 seconds
+File Name: bill11.pdf
+Page Classification: 1.95 seconds
+Total Pages: 1
+Relevant Pages: 1
+File Name: bill11.pdf
+Page Classification: 1.95 seconds
+Total Pages: 1
+Relevant Pages: 1
+Values Extraction: 132.60 seconds
+File Name: Claim Form.pdf
+Page Classification: 17.50 seconds
+Total Pages: 5
+Relevant Pages: 0
+File Name: Claim Form.pdf
+File Name: Claim Form.pdf
+File Name: Claim Form.pdf
+File Name: Claim Form.pdf
+File Name: Claim Form.pdf
+File Name: Claim Form.pdf
+File Name: Claim Form.pdf
+File Name: Claim Form.pdf
+File Name: Claim Form.pdf
+File Name: Claim Form.pdf
+File Name: Claim Form.pdf
+File Name: Claim Form.pdf
+File Name: Claim Form.pdf
+File Name: Claim Form.pdf
+File Name: Claim Form.pdf
+File Name: Claim Form.pdf
+File Name: Claim Form.pdf

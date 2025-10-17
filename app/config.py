@@ -17,6 +17,8 @@ class Settings(BaseSettings):
 
     OPENAI_API_KEY: str
     GEMINI_API_KEY: str  # <-- Change from OPENAI_API_KEY
+    SONNET_API_KEY: str
+    CLAUDE_API_KEY: str
     DATABASE_URL: str = (
         "postgresql://mediclaim_user:blessingsofttech@localhost/mediclaim_db"
     )
